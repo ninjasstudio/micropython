@@ -32,6 +32,9 @@
 #include "driver/ledc.h"
 #include "esp_err.h"
 
+STATIC mp_obj_t mp_machine_pwm_duty_get(machine_pwm_obj_t *self);
+STATIC void mp_machine_pwm_duty_set(machine_pwm_obj_t *self, mp_int_t duty);
+
 // Which channel has which GPIO pin assigned?
 // (-1 if not assigned)
 STATIC int chan_gpio[LEDC_CHANNEL_MAX];
@@ -155,8 +158,8 @@ STATIC void mp_machine_pwm_print(const mp_print_t *print, mp_obj_t self_in, mp_p
     machine_pwm_obj_t *self = MP_OBJ_TO_PTR(self_in);
     mp_printf(print, "PWM(%u", self->pin);
     if (self->active) {
-        mp_printf(print, ", freq=%u, duty=%u", timers[chan_timer[self->channel]].freq_hz,
-            get_duty(self));
+        mp_printf(print, ", freq=%u, duty=%u, resolution=%u", timers[chan_timer[self->channel]].freq_hz,
+            mp_machine_pwm_duty_get(self), 1 << timers[chan_timer[self->channel]].duty_resolution);
     }
     mp_printf(print, ")");
 }
@@ -344,6 +347,6 @@ STATIC mp_obj_t mp_machine_pwm_duty_get(machine_pwm_obj_t *self) {
 STATIC void mp_machine_pwm_duty_set(machine_pwm_obj_t *self, mp_int_t duty) {
     duty &= ((1 << PWRES) - 1);
     duty >>= PWRES - timers[chan_timer[self->channel]].duty_resolution;
-    ESP_EXCEPTIONS(ledc_set_duty(PWMODE, self->channel, duty));
-    ESP_EXCEPTIONS(ledc_update_duty(PWMODE, self->channel));
+    check_esp_err(ledc_set_duty(PWMODE, self->channel, duty));
+    check_esp_err(ledc_update_duty(PWMODE, self->channel));
 }
