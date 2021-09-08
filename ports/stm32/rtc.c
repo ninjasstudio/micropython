@@ -27,7 +27,7 @@
 #include <stdio.h>
 
 #include "py/runtime.h"
-#include "lib/timeutils/timeutils.h"
+#include "shared/timeutils/timeutils.h"
 #include "extint.h"
 #include "rtc.h"
 #include "irq.h"
@@ -43,7 +43,7 @@
 /// \moduleref pyb
 /// \class RTC - real time clock
 ///
-/// The RTC is and independent clock that keeps track of the date
+/// The RTC is an independent clock that keeps track of the date
 /// and time.
 ///
 /// Example usage:

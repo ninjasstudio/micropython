@@ -28,7 +28,7 @@
 
 // Current version of MicroPython
 #define MICROPY_VERSION_MAJOR 1
-#define MICROPY_VERSION_MINOR 13
+#define MICROPY_VERSION_MINOR 17
 #define MICROPY_VERSION_MICRO 0
 
 // Combined version as a 32-bit number for convenience
@@ -126,7 +126,7 @@
 // Number of bytes in memory allocation/GC block. Any size allocated will be
 // rounded up to be multiples of this.
 #ifndef MICROPY_BYTES_PER_GC_BLOCK
-#define MICROPY_BYTES_PER_GC_BLOCK (4 * BYTES_PER_WORD)
+#define MICROPY_BYTES_PER_GC_BLOCK (4 * MP_BYTES_PER_OBJ_WORD)
 #endif
 
 // Number of words allocated (in BSS) to the GC stack (minimum is 1)
@@ -229,6 +229,11 @@
 #define MICROPY_MODULE_DICT_SIZE (1)
 #endif
 
+// Initial size of sys.modules dict
+#ifndef MICROPY_LOADED_MODULES_DICT_SIZE
+#define MICROPY_LOADED_MODULES_DICT_SIZE (3)
+#endif
+
 // Whether realloc/free should be passed allocated memory region size
 // You must enable this if MICROPY_MEM_STATS is enabled
 #ifndef MICROPY_MALLOC_USES_ALLOCATED_SIZE
@@ -283,6 +288,11 @@
 #define MICROPY_PERSISTENT_CODE_SAVE (0)
 #endif
 
+// Whether to support saving persistent code to a file via mp_raw_code_save_file
+#ifndef MICROPY_PERSISTENT_CODE_SAVE_FILE
+#define MICROPY_PERSISTENT_CODE_SAVE_FILE (0)
+#endif
+
 // Whether generated code can persist independently of the VM/runtime instance
 // This is enabled automatically when needed by other features
 #ifndef MICROPY_PERSISTENT_CODE
@@ -302,6 +312,11 @@
 // Whether to emit thumb native code
 #ifndef MICROPY_EMIT_THUMB
 #define MICROPY_EMIT_THUMB (0)
+#endif
+
+// Whether to emit ARMv7-M instruction support in thumb native code
+#ifndef MICROPY_EMIT_THUMB_ARMV7M
+#define MICROPY_EMIT_THUMB_ARMV7M (1)
 #endif
 
 // Whether to enable the thumb inline assembler
@@ -468,7 +483,8 @@
 /* Optimisations                                                             */
 
 // Whether to use computed gotos in the VM, or a switch
-// Computed gotos are roughly 10% faster, and increase VM code size by a little
+// Computed gotos are roughly 10% faster, and increase VM code size by a little,
+// e.g. ~1kiB on Cortex M4.
 // Note: enabling this will use the gcc-specific extensions of ranged designated
 // initialisers and addresses of labels, which are not part of the C99 standard.
 #ifndef MICROPY_OPT_COMPUTED_GOTO
@@ -533,6 +549,12 @@
 // Hook for the VM just before return opcode is finished being interpreted
 #ifndef MICROPY_VM_HOOK_RETURN
 #define MICROPY_VM_HOOK_RETURN
+#endif
+
+// Hook for mp_sched_schedule when a function gets scheduled on sched_queue
+// (this macro executes within an atomic section)
+#ifndef MICROPY_SCHED_HOOK_SCHEDULED
+#define MICROPY_SCHED_HOOK_SCHEDULED
 #endif
 
 // Whether to include the garbage collector
@@ -652,6 +674,8 @@ typedef long long mp_longint_impl_t;
 #define MICROPY_ENABLE_DOC_STRING (0)
 #endif
 
+// Exception messages are removed (requires disabling MICROPY_ROM_TEXT_COMPRESSION)
+#define MICROPY_ERROR_REPORTING_NONE     (0)
 // Exception messages are short static strings
 #define MICROPY_ERROR_REPORTING_TERSE    (1)
 // Exception messages provide basic error details
@@ -852,6 +876,11 @@ typedef double mp_float_t;
 #define MICROPY_PY_ASYNC_AWAIT (1)
 #endif
 
+// Support for literal string interpolation, f-strings (see PEP 498, Python 3.6+)
+#ifndef MICROPY_PY_FSTRINGS
+#define MICROPY_PY_FSTRINGS (0)
+#endif
+
 // Support for assignment expressions with := (see PEP 572, Python 3.8+)
 #ifndef MICROPY_PY_ASSIGN_EXPR
 #define MICROPY_PY_ASSIGN_EXPR (1)
@@ -1040,7 +1069,7 @@ typedef double mp_float_t;
 #endif
 
 // Whether to provide the built-in input() function. The implementation of this
-// uses mp-readline, so can only be enabled if the port uses this readline.
+// uses shared/readline, so can only be enabled if the port uses this readline.
 #ifndef MICROPY_PY_BUILTINS_INPUT
 #define MICROPY_PY_BUILTINS_INPUT (0)
 #endif
@@ -1293,6 +1322,13 @@ typedef double mp_float_t;
 #define MICROPY_PY_USELECT (0)
 #endif
 
+// Whether to enable the select() function in the "uselect" module (baremetal
+// implementation). This is present for compatibility but can be disabled to
+// save space.
+#ifndef MICROPY_PY_USELECT_SELECT
+#define MICROPY_PY_USELECT_SELECT (1)
+#endif
+
 // Whether to provide "utime" module functions implementation
 // in terms of mp_hal_* functions.
 #ifndef MICROPY_PY_UTIME_MP_HAL
@@ -1348,6 +1384,11 @@ typedef double mp_float_t;
 
 #ifndef MICROPY_PY_UJSON
 #define MICROPY_PY_UJSON (0)
+#endif
+
+// Whether to support the "separators" argument to dump, dumps
+#ifndef MICROPY_PY_UJSON_SEPARATORS
+#define MICROPY_PY_UJSON_SEPARATORS (1)
 #endif
 
 #ifndef MICROPY_PY_URE
@@ -1430,6 +1471,11 @@ typedef double mp_float_t;
 #define MICROPY_PY_MACHINE (0)
 #endif
 
+// Whether to include: bitstream
+#ifndef MICROPY_PY_MACHINE_BITSTREAM
+#define MICROPY_PY_MACHINE_BITSTREAM (0)
+#endif
+
 // Whether to include: time_pulse_us
 #ifndef MICROPY_PY_MACHINE_PULSE
 #define MICROPY_PY_MACHINE_PULSE (0)
@@ -1439,8 +1485,18 @@ typedef double mp_float_t;
 #define MICROPY_PY_MACHINE_I2C (0)
 #endif
 
+// Whether to provide the "machine.SoftI2C" class
+#ifndef MICROPY_PY_MACHINE_SOFTI2C
+#define MICROPY_PY_MACHINE_SOFTI2C (0)
+#endif
+
 #ifndef MICROPY_PY_MACHINE_SPI
 #define MICROPY_PY_MACHINE_SPI (0)
+#endif
+
+// Whether to provide the "machine.SoftSPI" class
+#ifndef MICROPY_PY_MACHINE_SOFTSPI
+#define MICROPY_PY_MACHINE_SOFTSPI (0)
 #endif
 
 #ifndef MICROPY_PY_USSL
@@ -1459,6 +1515,11 @@ typedef double mp_float_t;
 
 #ifndef MICROPY_PY_BTREE
 #define MICROPY_PY_BTREE (0)
+#endif
+
+// Whether to provide the low-level "_onewire" module
+#ifndef MICROPY_PY_ONEWIRE
+#define MICROPY_PY_ONEWIRE (0)
 #endif
 
 /*****************************************************************************/
@@ -1487,8 +1548,12 @@ typedef double mp_float_t;
 /*****************************************************************************/
 /* Hooks for a port to wrap functions with attributes                        */
 
-#ifndef MICROPY_WRAP_MP_KEYBOARD_INTERRUPT
-#define MICROPY_WRAP_MP_KEYBOARD_INTERRUPT(f) f
+#ifndef MICROPY_WRAP_MP_SCHED_EXCEPTION
+#define MICROPY_WRAP_MP_SCHED_EXCEPTION(f) f
+#endif
+
+#ifndef MICROPY_WRAP_MP_SCHED_KEYBOARD_INTERRUPT
+#define MICROPY_WRAP_MP_SCHED_KEYBOARD_INTERRUPT(f) f
 #endif
 
 #ifndef MICROPY_WRAP_MP_SCHED_SCHEDULE
@@ -1520,17 +1585,17 @@ typedef double mp_float_t;
 #define STATIC static
 #endif
 
-// Number of bytes in a word
-#ifndef BYTES_PER_WORD
-#define BYTES_PER_WORD (sizeof(mp_uint_t))
+// Number of bytes in an object word: mp_obj_t, mp_uint_t, mp_uint_t
+#ifndef MP_BYTES_PER_OBJ_WORD
+#define MP_BYTES_PER_OBJ_WORD (sizeof(mp_uint_t))
 #endif
 
-#ifndef BITS_PER_BYTE
-#define BITS_PER_BYTE (8)
+// Number of bits in a byte
+#ifndef MP_BITS_PER_BYTE
+#define MP_BITS_PER_BYTE (8)
 #endif
-#define BITS_PER_WORD (BITS_PER_BYTE * BYTES_PER_WORD)
 // mp_int_t value with most significant bit set
-#define WORD_MSBIT_HIGH (((mp_uint_t)1) << (BYTES_PER_WORD * 8 - 1))
+#define MP_OBJ_WORD_MSBIT_HIGH (((mp_uint_t)1) << (MP_BYTES_PER_OBJ_WORD * MP_BITS_PER_BYTE - 1))
 
 // Make sure both MP_ENDIANNESS_LITTLE and MP_ENDIANNESS_BIG are
 // defined and that they are the opposite of each other.
