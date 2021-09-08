@@ -147,6 +147,21 @@ STATIC bool is_timer_in_use(int current_channel, int timer) {
 }
 
 /******************************************************************************/
+STATIC uint32_t get_duty(esp32_pwm_obj_t *self) {
+    uint32_t duty;
+    duty = ledc_get_duty(PWMODE, self->channel);
+    duty <<= PWRES - timers[chan_timer[self->channel]].duty_resolution;
+    return duty;
+}
+
+STATIC void set_duty(esp32_pwm_obj_t *self, uint32_t duty) {
+    duty &= ((1 << PWRES) - 1);
+    duty >>= PWRES - timers[chan_timer[self->channel]].duty_resolution;
+    ESP_EXCEPTIONS(ledc_set_duty(PWMODE, self->channel, duty));
+    ESP_EXCEPTIONS(ledc_update_duty(PWMODE, self->channel));
+}
+
+/******************************************************************************/
 
 // MicroPython bindings for PWM
 
@@ -155,7 +170,7 @@ STATIC void esp32_pwm_print(const mp_print_t *print, mp_obj_t self_in, mp_print_
     mp_printf(print, "PWM(%u", self->pin);
     if (self->active) {
         mp_printf(print, ", freq=%u, duty=%u", timers[chan_timer[self->channel]].freq_hz,
-            ledc_get_duty(PWMODE, self->channel));
+            get_duty(self));
     }
     mp_printf(print, ")");
 }
@@ -232,10 +247,7 @@ STATIC void esp32_pwm_init_helper(esp32_pwm_obj_t *self,
     // Set duty cycle?
     int dval = args[ARG_duty].u_int;
     if (dval != -1) {
-        dval &= ((1 << PWRES) - 1);
-        dval >>= PWRES - timers[timer].duty_resolution;
-        ledc_set_duty(PWMODE, channel, dval);
-        ledc_update_duty(PWMODE, channel);
+        set_duty(self, dval);
     }
 }
 
@@ -357,21 +369,14 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(esp32_pwm_freq_obj, 1, 2, esp32_pwm_f
 
 STATIC mp_obj_t esp32_pwm_duty(size_t n_args, const mp_obj_t *args) {
     esp32_pwm_obj_t *self = MP_OBJ_TO_PTR(args[0]);
-    int duty;
 
     if (n_args == 1) {
         // get
-        duty = ledc_get_duty(PWMODE, self->channel);
-        duty <<= PWRES - timers[chan_timer[self->channel]].duty_resolution;
-        return MP_OBJ_NEW_SMALL_INT(duty);
+        return MP_OBJ_NEW_SMALL_INT(get_duty(self));
     }
 
     // set
-    duty = mp_obj_get_int(args[1]);
-    duty &= ((1 << PWRES) - 1);
-    duty >>= PWRES - timers[chan_timer[self->channel]].duty_resolution;
-    ledc_set_duty(PWMODE, self->channel, duty);
-    ledc_update_duty(PWMODE, self->channel);
+    set_duty(self, mp_obj_get_int(args[1]));
 
     return mp_const_none;
 }
