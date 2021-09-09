@@ -33,12 +33,11 @@
 #include "esp_err.h"
 #include "esp_log.h"
 
+//#define PWM_DBG(...)
+#define PWM_DBG(...) mp_printf(&mp_plat_print, __VA_ARGS__)
+
 STATIC mp_obj_t mp_machine_pwm_duty_get(machine_pwm_obj_t *self);
 STATIC void mp_machine_pwm_duty_set(machine_pwm_obj_t *self, mp_int_t duty);
-
-// Which channel has which GPIO pin assigned?
-// (-1 if not assigned)
-STATIC int chan_gpio[LEDC_CHANNEL_MAX];
 
 // Params for PW operation
 // 5khz
@@ -54,6 +53,10 @@ STATIC int chan_gpio[LEDC_CHANNEL_MAX];
 
 // Config of timer upon which we run all PWM'ed GPIO pins
 STATIC bool pwm_inited = false;
+
+// Which channel has which GPIO pin assigned?
+// (-1 if not assigned)
+STATIC int chan_gpio[LEDC_CHANNEL_MAX];
 
 // Which channel has which timer assigned?
 // (-1 if not assigned)
@@ -160,7 +163,7 @@ STATIC void mp_machine_pwm_print(const mp_print_t *print, mp_obj_t self_in, mp_p
     mp_printf(print, "PWM(%u", self->pin);
     if (self->active) {
         mp_printf(print, ", freq=%u(%u), duty=%u, resolution=%u", timers[chan_timer[self->channel]].freq_hz,
-            ledc_get_freq(PWMODE, self->channel),
+            ledc_get_freq(PWMODE, timers[chan_timer[self->channel]].timer_num),
             mp_machine_pwm_duty_get(self), 1 << timers[chan_timer[self->channel]].duty_resolution);
     }
     mp_printf(print, ")");
@@ -192,7 +195,7 @@ STATIC void mp_machine_pwm_init_helper(machine_pwm_obj_t *self,
     }
     if (channel >= LEDC_CHANNEL_MAX) {
         if (avail == -1) {
-            mp_raise_ValueError(MP_ERROR_TEXT("out of PWM channels"));
+            mp_raise_msg_varg(&mp_type_ValueError, MP_ERROR_TEXT("out of PWM channels:%d"), LEDC_CHANNEL_MAX);
         }
         channel = avail;
     }
@@ -207,9 +210,9 @@ STATIC void mp_machine_pwm_init_helper(machine_pwm_obj_t *self,
     }
 
     int timer = found_timer(freq, false);
-    ESP_LOGI("1 timer %d", "timer");
+    PWM_DBG("1 timer %d\n", timer);
     if (timer == -1) {
-        mp_raise_ValueError(MP_ERROR_TEXT("1 out of PWM timers"));
+        mp_raise_msg_varg(&mp_type_ValueError, MP_ERROR_TEXT("out of PWM timers:%d"), LEDC_TIMER_MAX);
     }
     chan_timer[channel] = timer;
 
@@ -306,14 +309,16 @@ STATIC void mp_machine_pwm_freq_set(machine_pwm_obj_t *self, mp_int_t freq) {
 
     // Check if an already running timer with the same freq is running
     new_timer = found_timer(freq, true);
+    PWM_DBG("2 timer %d\n", new_timer);
 
     // If no existing timer was found, and the current one is in use, then find a new one
     if (new_timer == -1 && current_in_use) {
         // Have to find a new timer
         new_timer = found_timer(freq, false);
+        PWM_DBG("3 timer %d\n", new_timer);
 
         if (new_timer == -1) {
-            mp_raise_ValueError(MP_ERROR_TEXT("2 out of PWM timers"));
+            mp_raise_msg_varg(&mp_type_ValueError, MP_ERROR_TEXT("out of PWM timers:%d"), LEDC_TIMER_MAX);
         }
     }
 
@@ -343,13 +348,19 @@ STATIC void mp_machine_pwm_freq_set(machine_pwm_obj_t *self, mp_int_t freq) {
 
 STATIC mp_obj_t mp_machine_pwm_duty_get(machine_pwm_obj_t *self) {
     int duty = ledc_get_duty(PWMODE, self->channel);
+    PWM_DBG("1 duty_get %d\n", duty);
     duty <<= PWRES - timers[chan_timer[self->channel]].duty_resolution;
+    PWM_DBG("2 duty_get %d\n", duty);
+    ???
     return MP_OBJ_NEW_SMALL_INT(duty);
 }
 
 STATIC void mp_machine_pwm_duty_set(machine_pwm_obj_t *self, mp_int_t duty) {
+    PWM_DBG("1 duty_set %d\n", duty);
     duty &= ((1 << PWRES) - 1);
+    PWM_DBG("3 duty_set %d\n", duty);
     duty >>= PWRES - timers[chan_timer[self->channel]].duty_resolution;
+    PWM_DBG("3 duty_set %d\n", duty);
     check_esp_err(ledc_set_duty(PWMODE, self->channel, duty));
     check_esp_err(ledc_update_duty(PWMODE, self->channel));
 }
