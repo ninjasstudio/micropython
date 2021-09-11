@@ -89,8 +89,8 @@ STATIC void pwm_init(void) {
         // unset timer is -1
         timers[x].freq_hz = -1;
         timers[x].speed_mode = x < LEDC_TIMER_MAX ? LEDC_LOW_SPEED_MODE : LEDC_HIGH_SPEED_MODE;
-        PWM_DBG("\n speed_mode %d\n", timers[x].speed_mode);
         timers[x].timer_num = x % LEDC_TIMER_MAX;
+        PWM_DBG("\n speed_mode %d %d ", timers[x].speed_mode, timers[x].timer_num);
     }
 }
 
@@ -245,11 +245,11 @@ STATIC void mp_machine_pwm_init_helper(machine_pwm_obj_t *self,
             .duty = (1 << timers[chan_timer[self->channel]].duty_resolution) / 2,
             .gpio_num = self->pin,
             .intr_type = LEDC_INTR_DISABLE,
-            .speed_mode = timers[chan_timer[self->channel]].speed_mode,
+            .speed_mode = timers[chan_timer[channel]].speed_mode,
             .timer_sel = timer,
         };
 
-        PWM_DBG("\n cfg %d %d %d %d %d %d\n", cfg.channel, cfg.duty, cfg.gpio_num, cfg.intr_type, cfg.speed_mode, cfg.timer_sel);
+        PWM_DBG("\n cfg ch=%d du=%d gpio=%d irq=%d mode=%d timer=%d ", cfg.channel, cfg.duty, cfg.gpio_num, cfg.intr_type, cfg.speed_mode, cfg.timer_sel);
         check_esp_err(ledc_channel_config(&cfg));
 
         if (ledc_channel_config(&cfg) != ESP_OK) {
