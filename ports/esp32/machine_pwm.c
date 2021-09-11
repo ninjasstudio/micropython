@@ -39,18 +39,12 @@
 // Params for PW operation
 // 5khz
 #define PWFREQ (5000)
-
 // High speed mode
 #if CONFIG_IDF_TARGET_ESP32
-    //#define PWMODE (LEDC_HIGH_SPEED_MODE)
-    #define PWM_CHANNEL_MAX (LEDC_CHANNEL_MAX * 2)
-    #define PWM_TIMER_MAX (LEDC_TIMER_MAX * 2)
+#define PWMODE (LEDC_HIGH_SPEED_MODE)
 #else
-    //#define PWMODE (LEDC_LOW_SPEED_MODE)
-    #define PWM_CHANNEL_MAX (LEDC_CHANNEL_MAX)
-    #define PWM_TIMER_MAX (LEDC_TIMER_MAX)
+#define PWMODE (LEDC_LOW_SPEED_MODE)
 #endif
-
 // 10-bit resolution (compatible with esp8266 PWM)
 #define PWRES (LEDC_TIMER_10_BIT)
 
@@ -59,14 +53,14 @@ STATIC bool pwm_inited = false;
 
 // Which channel has which GPIO pin assigned?
 // (-1 if not assigned)
-STATIC int chan_gpio[PWM_CHANNEL_MAX];
+STATIC int chan_gpio[LEDC_CHANNEL_MAX];
 
 // Which channel has which timer assigned?
 // (-1 if not assigned)
-STATIC int chan_timer[PWM_CHANNEL_MAX];
+STATIC int chan_timer[LEDC_CHANNEL_MAX];
 
 // List of timer configs
-STATIC ledc_timer_config_t timers[PWM_TIMER_MAX];
+STATIC ledc_timer_config_t timers[LEDC_TIMER_MAX];
 
 typedef struct _machine_pwm_obj_t {
     mp_obj_base_t base;
@@ -78,19 +72,18 @@ typedef struct _machine_pwm_obj_t {
 STATIC void pwm_init(void) {
 
     // Initial condition: no channels assigned
-    for (int x = 0; x < PWM_CHANNEL_MAX; ++x) {
+    for (int x = 0; x < LEDC_CHANNEL_MAX; ++x) {
         chan_gpio[x] = -1;
         chan_timer[x] = -1;
     }
 
     // Initial condition: no timers assigned
-    for (int x = 0; x < PWM_TIMER_MAX; ++x) {
+    for (int x = 0; x < LEDC_TIMER_MAX; ++x) {
         timers[x].duty_resolution = PWRES;
         // unset timer is -1
         timers[x].freq_hz = -1;
-        timers[x].speed_mode = x < LEDC_TIMER_MAX ? LEDC_LOW_SPEED_MODE : LEDC_HIGH_SPEED_MODE;
-        timers[x].timer_num = x % LEDC_TIMER_MAX;
-        PWM_DBG("\n speed_mode %d %d ", timers[x].speed_mode, timers[x].timer_num);
+        timers[x].speed_mode = PWMODE;
+        timers[x].timer_num = x;
     }
 }
 
@@ -150,7 +143,7 @@ STATIC int found_timer(int freq, bool same_freq_only) {
     int free_timer_found = -1;
     int timer;
     // Find a free PWM Timer using the same freq
-    for (timer = 0; timer < PWM_TIMER_MAX; ++timer) {
+    for (timer = 0; timer < LEDC_TIMER_MAX; ++timer) {
         if (timers[timer].freq_hz == freq) {
             // A timer already uses the same freq. Use it now.
             return timer;
@@ -167,7 +160,7 @@ STATIC int found_timer(int freq, bool same_freq_only) {
 // Return true if the timer is in use in addition to current channel
 STATIC bool is_timer_in_use(int current_channel, int timer) {
     int i;
-    for (i = 0; i < PWM_CHANNEL_MAX; ++i) {
+    for (i = 0; i < LEDC_CHANNEL_MAX; ++i) {
         if (i != current_channel && chan_timer[i] == timer) {
             return true;
         }
@@ -206,7 +199,7 @@ STATIC void mp_machine_pwm_init_helper(machine_pwm_obj_t *self,
 
     // Find a free PWM channel, also spot if our pin is
     //  already mentioned.
-    for (channel = 0; channel < PWM_CHANNEL_MAX; ++channel) {
+    for (channel = 0; channel < LEDC_CHANNEL_MAX; ++channel) {
         if (chan_gpio[channel] == self->pin) {
             break;
         }
@@ -214,9 +207,9 @@ STATIC void mp_machine_pwm_init_helper(machine_pwm_obj_t *self,
             avail = channel;
         }
     }
-    if (channel >= PWM_CHANNEL_MAX) {
+    if (channel >= LEDC_CHANNEL_MAX) {
         if (avail == -1) {
-            mp_raise_msg_varg(&mp_type_ValueError, MP_ERROR_TEXT("out of PWM channels:%d"), PWM_CHANNEL_MAX);
+            mp_raise_msg_varg(&mp_type_ValueError, MP_ERROR_TEXT("out of PWM channels:%d"), LEDC_CHANNEL_MAX);
         }
         channel = avail;
     }
@@ -233,7 +226,7 @@ STATIC void mp_machine_pwm_init_helper(machine_pwm_obj_t *self,
     int timer = found_timer(freq, false);
     //PWM_DBG("\n1 timer %d\n", timer);
     if (timer == -1) {
-        mp_raise_msg_varg(&mp_type_ValueError, MP_ERROR_TEXT("out of PWM timers:%d"), PWM_TIMER_MAX);
+        mp_raise_msg_varg(&mp_type_ValueError, MP_ERROR_TEXT("out of PWM timers:%d"), LEDC_TIMER_MAX);
     }
     chan_timer[channel] = timer;
 
@@ -241,11 +234,11 @@ STATIC void mp_machine_pwm_init_helper(machine_pwm_obj_t *self,
     self->active = 1;
     if (chan_gpio[channel] == -1) {
         ledc_channel_config_t cfg = {
-            .channel = channel % LEDC_CHANNEL_MAX,
-            .duty = (1 << timers[chan_timer[self->channel]].duty_resolution) / 2,
+            .channel = channel,
+            .duty = (1 << timers[timer].duty_resolution) / 2,
             .gpio_num = self->pin,
             .intr_type = LEDC_INTR_DISABLE,
-            .speed_mode = timers[chan_timer[channel]].speed_mode,
+            .speed_mode = timers[timer].speed_mode,
             .timer_sel = timer,
         };
 
@@ -300,7 +293,7 @@ STATIC void mp_machine_pwm_deinit(machine_pwm_obj_t *self) {
     int chan = self->channel;
 
     // Valid channel?
-    if ((chan >= 0) && (chan < PWM_CHANNEL_MAX)) {
+    if ((chan >= 0) && (chan < LEDC_CHANNEL_MAX)) {
         // Clean up timer if necessary
         if (!is_timer_in_use(chan, chan_timer[chan])) {
             ledc_timer_rst(timers[chan_timer[chan]].speed_mode, chan_timer[chan]);
@@ -343,7 +336,7 @@ STATIC void mp_machine_pwm_freq_set(machine_pwm_obj_t *self, mp_int_t freq) {
         PWM_DBG("\n3 timer %d\n", new_timer);
 
         if (new_timer == -1) {
-            mp_raise_msg_varg(&mp_type_ValueError, MP_ERROR_TEXT("out of PWM timers:%d"), PWM_TIMER_MAX);
+            mp_raise_msg_varg(&mp_type_ValueError, MP_ERROR_TEXT("out of PWM timers:%d"), LEDC_TIMER_MAX);
         }
     }
 
