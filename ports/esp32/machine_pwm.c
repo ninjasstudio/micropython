@@ -162,10 +162,10 @@ STATIC void set_duty(machine_pwm_obj_t *self, uint32_t duty) {
     //PWM_DBG("\n2 duty_set %d\n", duty);
     duty >>= (PWRES - timers[chan_timer[self->channel]].duty_resolution);
     //PWM_DBG("\n2 duty_set %d\n", duty);
-    check_esp_err(ledc_set_duty(self->mode, self->channel, duty));
     int n = 10;
-    while ((duty != get_duty(self)) and (n--)) {
-        // it may be necessary to wait until the end of the PWM period?
+    while ((duty != get_duty(self)) && (n--)) {
+        // it may be necessary to wait until the end of the PWM period ???
+        check_esp_err(ledc_set_duty(self->mode, self->channel, duty));
         check_esp_err(ledc_update_duty(self->mode, self->channel));
     }
 
