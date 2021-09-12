@@ -141,7 +141,7 @@ STATIC void set_duty(machine_pwm_obj_t *self, mp_int_t duty) {
     duty &= ((1 << PWRES) - 1);
     //PWM_DBG("\n2 duty_set %d\n", duty);
     duty >>= PWRES - timers[chan_timer[self->channel]].duty_resolution;
-    //PWM_DBG("\n3 duty_set %d %d %d\n", duty, PWRES, timers[chan_timer[self->channel]].duty_resolution);
+    PWM_DBG("\n duty_set %d %d %d\n", duty, PWRES, timers[chan_timer[self->channel]].duty_resolution);
     check_esp_err(ledc_set_duty(timers[chan_timer[self->channel]].speed_mode, self->channel, duty));
     check_esp_err(ledc_update_duty(timers[chan_timer[self->channel]].speed_mode, self->channel));
 
@@ -155,7 +155,7 @@ STATIC int get_duty(machine_pwm_obj_t *self) {
     int duty = ledc_get_duty(timers[chan_timer[self->channel]].speed_mode, self->channel);
     //PWM_DBG("\n1 duty_get %d\n", duty);
     duty <<= PWRES - timers[chan_timer[self->channel]].duty_resolution;
-    //PWM_DBG("\n2 duty_get %d\n", duty);
+    PWM_DBG("\n duty_get %d\n", duty);
     return duty;
 }
 
@@ -196,9 +196,15 @@ STATIC void mp_machine_pwm_print(const mp_print_t *print, mp_obj_t self_in, mp_p
     machine_pwm_obj_t *self = MP_OBJ_TO_PTR(self_in);
     mp_printf(print, "PWM(%u", self->pin);
     if (self->active) {
-        mp_printf(print, ", freq=%u(%u), duty=%u, resolution=%u", timers[chan_timer[self->channel]].freq_hz,
-            ledc_get_freq(timers[chan_timer[self->channel]].speed_mode, timers[chan_timer[self->channel]].timer_num),
-            get_duty(self), 1 << timers[chan_timer[self->channel]].duty_resolution);
+        int duty = get_duty(self);
+        mp_printf(print, ", freq=%u, duty=%u(%.1f%%), resolution=%u bits(%.2f%%)",
+            //timers[chan_timer[self->channel]].freq_hz,
+            ledc_get_freq(timers[chan_timer[self->channel]].speed_mode,
+            timers[chan_timer[self->channel]].timer_num),
+            duty,
+            100.0 * duty / (1 << PWRES),
+            timers[chan_timer[self->channel]].duty_resolution,
+            100.0 * 1 / (1 << timers[chan_timer[self->channel]].duty_resolution));
     }
     mp_printf(print, ")");
 }
