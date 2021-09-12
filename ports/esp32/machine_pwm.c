@@ -86,13 +86,15 @@ STATIC void pwm_init(void) {
     ledc_timer_config_t timer_cfg = {
         .duty_resolution = PWRES,
         .freq_hz = PWFREQ,
-        .speed_mode = PWMODE,
+        .clk_cfg = LEDC_USE_APB_CLK
     };
     // Initial condition: no timers assigned
     for (int x = 0; x < LEDC_TIMER_MAX; ++x) {
-        timer_cfg.timer_num = x;
-        ledc_timer_config(&timer_cfg);
-            
+        for (int mode = 0; mode < LEDC_SPEED_MODE_MAX; ++mode) {
+            timer_cfg.timer_num = x;
+            timer_cfg.speed_mode = mode;
+            ledc_timer_config(&timer_cfg);
+        }
         timers[x].duty_resolution = PWRES;
         // unset timer is -1
         timers[x].freq_hz = -1;
@@ -205,7 +207,7 @@ STATIC void mp_machine_pwm_print(const mp_print_t *print, mp_obj_t self_in, mp_p
             100.0 * duty / (1 << PWRES),
             timers[chan_timer[self->channel]].duty_resolution,
             100.0 * 1 / (1 << timers[chan_timer[self->channel]].duty_resolution),
-            self->timer, 
+            self->timer,
             self->mode);
     }
     mp_printf(print, ")");
@@ -333,7 +335,7 @@ STATIC void mp_machine_pwm_deinit(machine_pwm_obj_t *self) {
         }
 
         // Mark it unused, and tell the hardware to stop routing
-        ledc_stop(PWMODE, chan, 0);
+        ledc_stop(self->mode, chan, 0);
         chan_gpio[chan] = -1;
         chan_timer[chan] = -1;
         self->active = 0;
