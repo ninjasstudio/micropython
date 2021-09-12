@@ -138,9 +138,9 @@ STATIC int set_freq(int newval, ledc_timer_config_t *timer) {
 
 STATIC uint32_t get_duty(machine_pwm_obj_t *self) {
     uint32_t duty = ledc_get_duty(PWMODE, self->channel);
-    PWM_DBG("\n1 duty_get %d\n", duty);
+    //PWM_DBG("\n1 duty_get %d\n", duty);
     duty <<= PWRES - timers[chan_timer[self->channel]].duty_resolution;
-    PWM_DBG("\n duty_get %d\n", duty);
+    //PWM_DBG("\n duty_get %d\n", duty);
     return duty;
 }
 
@@ -157,14 +157,13 @@ STATIC void set_duty(machine_pwm_obj_t *self, uint32_t duty) {
         //check_esp_err(ledc_timer_rst(PWMODE, timers[chan_timer[self->channel]].timer_num));
     #endif
 
-    //PWM_DBG("\n duty_set %u %u %d %d\n", duty, get_duty(self), PWRES, timers[chan_timer[self->channel]].duty_resolution);
+    PWM_DBG("\n duty_set %u %u %d %d\n", duty, get_duty(self), PWRES, timers[chan_timer[self->channel]].duty_resolution);
 }
 
-STATIC int found_timer(int freq, bool same_freq_only) {
+STATIC int find_timer(int freq, bool same_freq_only) {
     int free_timer_found = -1;
-    int timer;
     // Find a free PWM Timer using the same freq
-    for (timer = 0; timer < LEDC_TIMER_MAX; ++timer) {
+    for (int timer = 0; timer < LEDC_TIMER_MAX; ++timer) {
         if (timers[timer].freq_hz == freq) {
             // A timer already uses the same freq. Use it now.
             return timer;
@@ -180,9 +179,8 @@ STATIC int found_timer(int freq, bool same_freq_only) {
 
 // Return true if the timer is in use in addition to current channel
 STATIC bool is_timer_in_use(int current_channel, int timer) {
-    int i;
-    for (i = 0; i < LEDC_CHANNEL_MAX; ++i) {
-        if (i != current_channel && chan_timer[i] == timer) {
+    for (int i = 0; i < LEDC_CHANNEL_MAX; ++i) {
+        if ((i != current_channel) && (chan_timer[i] == timer)) {
             return true;
         }
     }
@@ -250,7 +248,7 @@ STATIC void mp_machine_pwm_init_helper(machine_pwm_obj_t *self,
         freq = chan_timer[self->channel] != -1 ? timers[chan_timer[self->channel]].freq_hz : PWFREQ;
     }
 
-    int timer = found_timer(freq, false);
+    int timer = find_timer(freq, false);
     //PWM_DBG("\n1 timer %d\n", timer);
     if (timer == -1) {
         mp_raise_msg_varg(&mp_type_ValueError, MP_ERROR_TEXT("out of PWM timers:%d"), LEDC_TIMER_MAX);
@@ -347,18 +345,17 @@ STATIC void mp_machine_pwm_freq_set(machine_pwm_obj_t *self, mp_int_t freq) {
     }
 
     int current_timer = chan_timer[self->channel];
-    int new_timer = -1;
     bool current_in_use = is_timer_in_use(self->channel, current_timer);
 
     // Check if an already running timer with the same freq is running
-    new_timer = found_timer(freq, true);
-    PWM_DBG("\n2 timer %d\n", new_timer);
+    int new_timer = find_timer(freq, true);
+    //PWM_DBG("\n2 timer %d\n", new_timer);
 
     // If no existing timer was found, and the current one is in use, then find a new one
     if (new_timer == -1 && current_in_use) {
         // Have to find a new timer
-        new_timer = found_timer(freq, false);
-        PWM_DBG("\n3 timer %d\n", new_timer);
+        new_timer = find_timer(freq, false);
+        //PWM_DBG("\n3 timer %d\n", new_timer);
 
         if (new_timer == -1) {
             mp_raise_msg_varg(&mp_type_ValueError, MP_ERROR_TEXT("out of PWM timers:%d"), LEDC_TIMER_MAX);
