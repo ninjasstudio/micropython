@@ -199,7 +199,7 @@ STATIC void mp_machine_pwm_print(const mp_print_t *print, mp_obj_t self_in, mp_p
         int duty = get_duty(self);
         mp_printf(print, ", freq=%u, duty=%u(%.1f%%), resolution=%u bits(%.2f%%)",
             //timers[chan_timer[self->channel]].freq_hz,
-            ledc_get_freq(timers[chan_timer[self->channel]].speed_mode,
+            ledc_get_freq(PWMODE,
             timers[chan_timer[self->channel]].timer_num),
             duty,
             100.0 * duty / (1 << PWRES),
@@ -264,7 +264,7 @@ STATIC void mp_machine_pwm_init_helper(machine_pwm_obj_t *self,
             .duty = (1 << timers[timer].duty_resolution) / 2,
             .gpio_num = self->pin,
             .intr_type = LEDC_INTR_DISABLE,
-            .speed_mode = timers[timer].speed_mode,
+            .speed_mode = PWMODE,
             .timer_sel = timer,
         };
 
@@ -320,13 +320,13 @@ STATIC void mp_machine_pwm_deinit(machine_pwm_obj_t *self) {
     if ((chan >= 0) && (chan < LEDC_CHANNEL_MAX)) {
         // Clean up timer if necessary
         if (!is_timer_in_use(chan, chan_timer[chan])) {
-            ledc_timer_rst(timers[chan_timer[chan]].speed_mode, chan_timer[chan]);
+            ledc_timer_rst(PWMODE, chan_timer[chan]);
             // Flag it unused
             timers[chan_timer[chan]].freq_hz = -1;
         }
 
         // Mark it unused, and tell the hardware to stop routing
-        ledc_stop(timers[chan_timer[chan]].speed_mode, chan, 0);
+        ledc_stop(PWMODE, chan, 0);
         chan_gpio[chan] = -1;
         chan_timer[chan] = -1;
         self->active = 0;
@@ -368,13 +368,13 @@ STATIC void mp_machine_pwm_freq_set(machine_pwm_obj_t *self, mp_int_t freq) {
         // Bind the channel to the new timer
         chan_timer[self->channel] = new_timer;
 
-        if (ledc_bind_channel_timer(timers[chan_timer[self->channel]].speed_mode, self->channel, new_timer) != ESP_OK) {
+        if (ledc_bind_channel_timer(PWMODE, self->channel, new_timer) != ESP_OK) {
             mp_raise_msg_varg(&mp_type_ValueError, MP_ERROR_TEXT("Failed to bind timer to channel"));
         }
 
         if (!current_in_use) {
             // Free the old timer
-            ledc_timer_rst(timers[chan_timer[self->channel]].speed_mode, current_timer);
+            ledc_timer_rst(PWMODE, current_timer);
             // Flag it unused
             timers[current_timer].freq_hz = -1;
         }
