@@ -6,3 +6,4 @@ SRC_USERMOD += $(MOD_DIR)/mahony.c
 # We can add our module folder to include paths if needed
 # This is not actually needed in this example.
 CFLAGS_USERMOD += -I$(MOD_DIR)
+CMOD_DIR := $(USERMOD_DIR)

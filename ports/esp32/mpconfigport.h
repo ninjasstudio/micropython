@@ -308,3 +308,8 @@ typedef long mp_off_t;
 #ifndef MICROPY_HW_ENABLE_MDNS_RESPONDER
 #define MICROPY_HW_ENABLE_MDNS_RESPONDER    (1)
 #endif
+
+//----------------------------------------------
+#define MODULE_MAHONY_ENABLED (1)
+#define MODULE_PCNT_ENABLED (1)
+#define MODULE_QUAD_ENABLED (1)
