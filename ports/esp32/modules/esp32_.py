@@ -72,11 +72,11 @@ BUT2 = const(39)
 #ENCODER_CLK = U2RXD  ## green
 # ----------------------------------------------------------------------
 # STEP/DIR MOTOR
-STEP_1 = const(27)  # XP14 Azim
-DIR_1 = const(32)
+STEP_1 = const(26)  # XP14 Azim
+DIR_1 = const(23)
 
-STEP_2 = const(26)  # XP15 Elev
-DIR_2 = const(23)
+STEP_2 = const(27)  # XP15 Elev
+DIR_2 = const(32)
 # ----------------------------------------------------------------------
 #  Input only pins
 # GPIO34  input only
