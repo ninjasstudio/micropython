@@ -12,6 +12,32 @@ collect()
 ANGLE_PRECISION = 0.05
 STEP_PULSE_us = 5  # 10  # длительность импульса в мкс
 
+a_st90 = 200 * 32 * 6  # 200 шагов * 32 микрошага * 6 оборотов = 90 градусов
+# a_st45 = 200 * 16 * 3  # 6 оборотов = 90 градусов
+# a_st30 = a_st90 / 3  # 30 градусов
+# a_st10 = a_st90 / 9  # 10 градусов
+# a_st3 = a_st90 / 30  # 3 градус
+a_st1 = a_st90 / 90  # 1 градус
+a_st1 = 200 * 16 * 6 / 360
+
+e_st45 = 200 * 32 * 75  # 200 шагов * 32 микрошага * 75 оборотов = 45 градусов
+# e_st30 = e_st45 * 2 / 3  # 30 градусов
+# e_st10 = e_st45 * 10 / 45  # 10 градусов
+e_st1 = e_st45 / 45  # 1 градус
+# # e_st1/a_st1 == 25
+
+MOTOR_A_PIN_STEP = STEP_1  # 18
+MOTOR_A_PIN_DIR = DIR_1  # 19
+
+MOTOR_E_PIN_STEP = STEP_2  # 26
+MOTOR_E_PIN_DIR = DIR_2  # 27
+
+CW = const(1)  # clockwise         # по часовой стрелке
+CCW = const(-1)  # counterclock-wise # против часовой стрелки
+
+UP = const(1)  # вверх
+DOWN = const(-1)  # вниз
+
 
 class StepMotorPid():
     def __init__(self, name, _pin_step, _pin_dir, in_angle, pid, max_limit=180, min_limit=-180):  # steps_per_angle, step_frequency,
@@ -45,7 +71,6 @@ class StepMotorPid():
         self.direction = 0
 
         self.us_prev_step = ticks_us()
-        self._last_time = ticks_us()
 
         self.max_limit = max_limit  # физические механические ограничения конструкции
         self.min_limit = min_limit
@@ -69,12 +94,7 @@ class StepMotorPid():
     @micropython.native
     def start_pulses(self):
         self.pid.setpoint = self._angle_target
-        now = ticks_us()
-        dt = ticks_diff(now, self._last_time) / 1000000
-        if dt <= 0.0:
-            dt = 1e-16
-        self._last_time = now                
-        self.step_frequency = self.pid(self.angle_now(), dt)
+        self.step_frequency = self.pid(self.angle_now())
         self.dir(self.step_frequency)
         self.step_frequency = abs(self.step_frequency)
         #         if self.name[0] == 'A':
