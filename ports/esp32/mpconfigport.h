@@ -312,6 +312,6 @@ typedef long mp_off_t;
 #endif
 
 //----------------------------------------------
-//#define MODULE_MAHONY_ENABLED (1)
+#define MODULE_MAHONY_ENABLED (1)
 //#define MODULE_PCNT_ENABLED (1)
 //#define MODULE_QUAD_ENABLED (1)
