@@ -8,6 +8,7 @@ def save_config(owl):
             f.write("ROUTEROS_USER = '{}'\n".format(owl.ROUTEROS_USER))
             f.write("ROUTEROS_PASSWORD = '{}'\n".format(owl.ROUTEROS_PASSWORD))
             f.write("RADIO_NAME = '{}'\n".format(owl.RADIO_NAME))
+            f.write("CORR_OWL_IP = '{}'\n".format(owl.CORR_OWL_IP))
             f.close()
     except Exception as e:
         print('Error writing config.py:', e)
