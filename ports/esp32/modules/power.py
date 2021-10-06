@@ -1,3 +1,4 @@
+power_exit =  False
 try:
     from gc import collect
     collect() 
@@ -5,7 +6,7 @@ try:
     collect() 
     from micropython import kbd_intr
     collect()
-    from _thread import start_new_thread
+    from _thread import start_new_thread, exit
     collect()
     from utime import sleep_ms
     collect()
@@ -24,7 +25,7 @@ try:
     pwr.value(1)  # battery on
 
     def check_PoE():
-        kbd_intr(-1)
+        #kbd_intr(-1)
         adc_PoE = ADC(Pin(ADC_PoE))  # create ADC object on ADC pin
         adc_PoE.atten(ADC.ATTN_6DB)  # 6dB attenuation, gives a maximum input voltage of approximately 2.00v
         a_PoE = adc_PoE.read()
@@ -47,10 +48,15 @@ try:
                     sleep_ms(1000)
 
                 led.value(not led.value())
+                #print('check_PoE()')
+                if power_exit:
+                    exit()
                 idle()
                 sleep_ms(1000)
             except KeyboardInterrupt:
                 print('check_PoE(): KeyboardInterrupt:')
+                sleep_ms(1000)
+                raise KeyboardInterrupt
                 pass
 
     try:
@@ -65,4 +71,3 @@ try:
 except Exception as e:
     print("Exception: start_new_thread:", e)
     pass
-

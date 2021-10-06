@@ -322,8 +322,9 @@ def do_get_config(server, arg, owl):
             elif arg.find("radio_name=") >= 0:
                 config.RADIO_NAME = val
                 owl.RADIO_NAME = val
-                owl.ros_api.radio_name = b"=radio-name=" + config.RADIO_NAME
-                print('do_get_config():ros_api.radio_name', owl.ros_api.radio_name)
+                if owl.ros_api:
+                    owl.ros_api.radio_name = b"=radio-name=" + config.RADIO_NAME
+                    print('do_get_config():ros_api.radio_name', owl.ros_api.radio_name)
         if changed:
             owl.deinit_ros_api()
             owl.init_ros_api(config.ROUTEROS_IP, config.ROUTEROS_USER, config.ROUTEROS_PASSWORD)

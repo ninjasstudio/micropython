@@ -77,13 +77,11 @@ class MicroPyServer(object):
         method = _method_regexp.search(line0).group(1)
         path = _path_regexp.search(line0).group(1)
         arg = str(URI_percent_decoding(_arg_regexp.search(line0).group(1)), "utf-8")
-        return self._routes[path + b'\x00' + method], arg
-#        try:
-#            return self._routes[path + b'\x00' + method], arg
-#        except BaseException as e:
-#            #raise
-#            #print_exception(e)
-#            return None, arg
+        try:
+            return self._routes[path + b'\x00' + method], arg
+        except KeyError as e:
+            print("{}:{} MicroPyServer KeyError:{}:".format(self.host, self.port, arg), e)
+            return None, arg
 
     def find_route_txt(self, path):
         """ Find route txt """
@@ -186,8 +184,7 @@ class MicroPyServer(object):
             if not self.accept():
                 return
 
-        if not self.receive():
-            return
+        self.receive()
 
         if self._skt is None:
             return
@@ -277,8 +274,7 @@ class MicroPyServer(object):
 #             self._out_buf = b'HEARTBEAT\n'
 #             self.send(False)
 
-        if not self.receive():
-            return
+        self.receive()
 
         if self._skt is None:
             return

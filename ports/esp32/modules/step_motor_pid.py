@@ -1,12 +1,8 @@
-#from micropython import const
 from gc import collect
-collect()
 from machine import Pin, PWM  # Timer
-collect()
 from utime import sleep_us, ticks_us, ticks_diff
-collect()
-
 from esp32_ import *
+
 collect()
 
 ANGLE_PRECISION = 0.05
@@ -18,8 +14,6 @@ class StepMotorPid():
         """ Constructor """
         self.name = name
 
-        #self.set_frequency(step_frequency)
-
         self.inverse_dir = False
         self.pin_dir = Pin(_pin_dir, Pin.OUT, value=0)
         self.pin_step = Pin(_pin_step, Pin.OUT, value=0)
@@ -27,17 +21,11 @@ class StepMotorPid():
         self.in_angle = in_angle  # function
         self.pid = pid
 
-        self.offset = 0  # смещение(неточность установки) датчика в градусах
+        self.offset = 0  # смещение датчика в градусах
 
         self.is_pulses = 0
         # 0 - выключены импульсы, координаты актуальны, возможно перемещение одиночными шагами в главном цикле
         # 1 - включены импульсы, перемещаемся в фоновом режиме, координаты рассчитываются на лету
-        # -1 - выключены импульсы, координаты еще не пересчитаны в актуальные
-
-        self.is_position = 0
-        # 0 - координаты актуальны после включения или после пересчета
-        # 1 - координаты не актуальны после наезда на "плюсовый" конечный выключатель
-        # -1 - координаты не актуальны после наезда на "минусовый" конечный выключатель
 
         self.pwm = None
         self._angle_target = 0
@@ -62,7 +50,7 @@ class StepMotorPid():
     #@micropython.native
     def deinit(self):
         try:
-            self.stop_pulses(1)
+            self.stop_pulses()
         except:
             pass
 
@@ -73,12 +61,10 @@ class StepMotorPid():
         dt = ticks_diff(now, self._last_time) / 1000000
         if dt <= 0.0:
             dt = 1e-16
-        self._last_time = now                
+        self._last_time = now
         self.step_frequency = self.pid(self.angle_now(), dt)
         self.dir(self.step_frequency)
         self.step_frequency = abs(self.step_frequency)
-        #         if self.name[0] == 'A':
-        #             print(self.name + ".start_pulses()", self.is_pulses, self.step_frequency, 'Hz')
 
         if self.is_pulses == 0:
             self.is_pulses = 1
@@ -87,11 +73,8 @@ class StepMotorPid():
             self.pwm.freq(self.step_frequency)
 
     @micropython.native
-    def stop_pulses(self, n=-1):
+    def stop_pulses(self):
         if self.pwm is not None:
-            #if n:
-            #    print('self.pwm.deinit() from stop_pulses(', n, ')')  #print() запрещено в прерываниии
-            #    pass
             try:
                 self.pwm.deinit()  # 1
             except:
@@ -100,32 +83,23 @@ class StepMotorPid():
             self.is_pulses = 0  # 3
 
     @micropython.native
-    def set_angle_now(self, to_angle):
-        #self.angle(to_angle)
-        pass
-
-    @micropython.native
     def is_ready(self) -> bool:
-        #delta = self._angle_target - self.angle_now()
-        #print('is_ready(): delta', delta)
         if self.direction > 0:
-            #if delta >= self.angle_precision:
             if self.angle_now() >= self.max_limit:
-                self.stop_pulses(2)
+                self.stop_pulses()
                 return True
             if self.angle_now() >= (self._angle_target - self.angle_precision):
-                self.stop_pulses(3)
+                self.stop_pulses()
                 return True
         elif self.direction < 0:
-            #if delta <= self.angle_precision:
             if self.angle_now() <= self.min_limit:
-                self.stop_pulses(4)
+                self.stop_pulses()
                 return True
             if self.angle_now() <= (self._angle_target + self.angle_precision):
-                self.stop_pulses(5)
+                self.stop_pulses()
                 return True
         else:
-            return abs(self._angle_target - self.angle_now()) <= (self.angle_precision * 2)
+            return abs(self._angle_target - self.angle_now()) <= self.angle_precision
         return False
 
     # -----------------------------------------------------------------------
@@ -148,12 +122,9 @@ class StepMotorPid():
     def set0(self):
         self.offset = self.in_angle()
         self.angle(0)
-        #print('set0():self.offset, self._angle_target, self.angle_now()', self.offset, self._angle_target, self.angle_now())
 
     @micropython.native
     def angle_now(self):
-        #print('self.in_angle(), self.offset', self.in_angle(), self.offset)
-        #return to180(self.in_angle() - self.offset)
         return self.in_angle() - self.offset
 
     @micropython.native
@@ -197,14 +168,10 @@ class StepMotorPid():
         if (diff >= self.us_step_period) or (diff < 0):
             self.single_step()
             self.us_prev_step = t
-        #elif diff < 0:
-        #    #self.us_prev_step = ticks_us()
-        #    raise
 
     @micropython.native
     def go_steps(self, steps):
         "Run steps from current position"
-        #steps = int(steps)
         while (steps > 0):
             self.move_single_step()
             steps -= 1
@@ -214,25 +181,24 @@ class StepMotorPid():
     def go(self):
         """ Perform one step each time in the main loop to achieve the target position """
         delta = self._angle_target - self.angle_now()
-        #print('delta', delta, 'target', self._angle_target, 'angle_now', self.angle_now())
         if delta > (self.angle_precision * 2):
             self.dir(1)
             if delta > self.angle_precision:
                 self.start_pulses()
             else:
-                self.stop_pulses(6)
+                self.stop_pulses()
                 self.single_step()
         elif delta < (-self.angle_precision * 2):
             self.dir(-1)
             if delta < -self.angle_precision:
                 self.start_pulses()
             else:
-                self.stop_pulses(7)
+                self.stop_pulses()
                 self.single_step()
         else:
-            self.stop_pulses(8)
+            self.stop_pulses()
 
     @micropython.native
     def stop_move(self):
-        self.stop_pulses(9)
+        self.stop_pulses()
         self._angle_target = self.angle_now()

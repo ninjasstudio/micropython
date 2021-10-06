@@ -112,6 +112,6 @@ make submodules
 make
 clear && make 
 
-make USER_C_MODULES=../../../examples/usercmodule/micropython.cmake
-make USER_C_MODULES=../cmodules/micropython.cmake
+clear && make USER_C_MODULES=../../../examples/usercmodule/micropython.cmake
+clear && make USER_C_MODULES=../cmodules/micropython.cmake
 
