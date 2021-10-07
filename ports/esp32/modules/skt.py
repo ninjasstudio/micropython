@@ -1,9 +1,12 @@
 """
 """
 from gc import collect
+
 collect()
 from socket import socket, AF_INET, SOCK_STREAM, SOL_SOCKET, SO_REUSEADDR  #, getaddrinfo
+
 collect()
+
 
 def open_server_socket(ip, port=0, address_family_type=AF_INET, socket_type=SOCK_STREAM, timeout=0, backlog=0):
     try:

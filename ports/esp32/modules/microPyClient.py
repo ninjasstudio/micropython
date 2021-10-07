@@ -4,12 +4,13 @@ from json import loads
 #from skt import close_socket
 from RouterOS_API import open_socket
 
+
 class MicroPyClient(object):
     CLOSED = 0  # сокет закрыт
     OPENED = 1  # сокет открыт
     SENT = 2  # запрос отправлен
     RECVED = 3  # ответ получен
-    
+
     def __init__(self, host, port=3232, timeout=None):
         self.host = host
         self.port = port
@@ -34,7 +35,7 @@ class MicroPyClient(object):
         self._skt = None
         self.state = self.CLOSED
         self.empty_bufs()
-        
+
     def __del__(self):
         self.connect_close()
 
@@ -54,7 +55,7 @@ class MicroPyClient(object):
                 return None
             print("{}:{} MicroPyClient open socket".format(self.host, self.port), self._skt.fileno())
             self.state = self.OPENED
-            
+
         if self.state == self.OPENED:
             if self._out_index < len(self._out):
                 try:
@@ -88,7 +89,7 @@ class MicroPyClient(object):
                 print("{}:{} MicroPyClient socket {} error: receive:".format(self.host, self.port, self._skt.fileno()), e)
                 self.connect_close()
                 return
-                
+
             eol_pos = self._in_buf.find(b"\n")
             if eol_pos < 0:
                 return

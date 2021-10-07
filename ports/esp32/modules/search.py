@@ -13,8 +13,9 @@ def handle_search(owl, motor, ros_params):
         else:
             motor.angle_minus = a
             motor.value_minus = v
+
     #end set()
-    
+
     if motor.state_prev != motor.state:
         motor.state_prev = motor.state
         #if motor.state == 0:
@@ -29,14 +30,14 @@ def handle_search(owl, motor, ros_params):
     else:
         a = owl.elev_angle_now
     a = round(a, 1)
-    
+
     if len(v) == 0:
-        owl.lost += 1    
+        owl.lost += 1
         if owl.lost > owl.LOSTS:
             owl.mode = owl.MD_SECTOR_A
         return
     owl.lost = 0
-    
+
     owl.filter_append(v)
     if motor.state in (3, 4):
         owl.angle_diagram_append(a, v)
@@ -64,7 +65,7 @@ def handle_search(owl, motor, ros_params):
     if motor.state == 0:  # очищаем исходные
         motor.angle_start = a  # если сигнал отсутствует, то стартовая позиция будет переписана при обнаружении сигнала
         motor.value_start = v
-        
+
         owl.angle_diagram_clear()
         owl.filter_clear()
         motor.angle_minus = None
@@ -74,7 +75,7 @@ def handle_search(owl, motor, ros_params):
         motor.search_dir_next = -motor.search_dir_next
         print('motor.search_dir_next', motor.mover.name, motor.search_dir_next)
         motor.state = 11
-        
+
     elif motor.state == 11:  # попытка заполнить фильтр
         if len(v) == 0:  # не ждем, не будет использоваться
             motor.state = 12
@@ -83,7 +84,7 @@ def handle_search(owl, motor, ros_params):
             motor.value_start = v
             motor.avg_start = owl.filter_avg()
             motor.state = 12
-            
+
     elif motor.state == 12:  # даем задание в "плюсовом" направлении на всю ширину
         #print("motor.angle_start, motor.value_start, motor.avg_start", motor.angle_start, motor.value_start, motor.avg_start)
         if motor.search_dir > 0:
@@ -91,7 +92,7 @@ def handle_search(owl, motor, ros_params):
         else:
             motor.angle(motor.min_search)
         motor.state = 1
-        
+
     elif motor.state == 1:
         if len(v) == 0:
             motor.state2 = 0  # 0-поиск "вправо до упора", 1-поиск "влево до упора", 2-прошли полный цикл-слежение по уровню SEARCH_LEVEL_DIFFERENCE
@@ -101,9 +102,9 @@ def handle_search(owl, motor, ros_params):
             motor.state2 = 2  # 2-слежение по уровню SEARCH_LEVEL_DIFFERENCE
             motor.angle_best = a
             motor.value_best = v
-        motor.avg_best = {} 
+        motor.avg_best = {}
         motor.state = 2
-        
+
     elif motor.state == 2:  # нахождение "правой" границы
         sub = value_sub(motor.value_best, v, ros_params)
         if (sub >= SEARCH_LEVEL_DIFFERENCE) and (motor.state2 == 2)\
@@ -138,7 +139,7 @@ def handle_search(owl, motor, ros_params):
         or (len(motor.value_best) > 0) and (len(v) == 0) and (owl.lost > ROS_LOST) \
         or motor.mover.is_ready() \
         or (motor.search_dir < 0) and (a <= motor.min_search) \
-        or (motor.search_dir > 0) and (a >= motor.max_search):  
+        or (motor.search_dir > 0) and (a >= motor.max_search):
             motor.mover.stop_move()
             #print("best4, v, a, sub", motor.value_best, v, a, sub)
             print("4. best, best.a, v, a, sub, motor.mover.is_ready(), motor.search_dir, motor.min_search, motor.max_search", motor.value_best, motor.angle_best, v, a, sub, motor.mover.is_ready(), motor.search_dir, motor.min_search, motor.max_search)
@@ -148,7 +149,7 @@ def handle_search(owl, motor, ros_params):
                     if motor.angle_bisector_diff is not None:
                         motor.angle(motor.angle_bisector_diff)  # даем задание на перемещение в середину плато
                         motor.state = 51
-                            
+
                     else:
                         motor.angle(motor.angle_bisector_max)  # даем задание на перемещение в середину max
                         motor.state = 54
@@ -157,8 +158,10 @@ def handle_search(owl, motor, ros_params):
                     motor.state = 57
             else:
                 motor.angle(motor.angle_start)  # даем задание на перемещение в исходную позицию
-                
+
             motor.state = 6
+
+
 #             else:
 #                 print("Нет сигнала, повторный поиск")
 #                 motor.state = 12
@@ -199,10 +202,10 @@ def handle_search(owl, motor, ros_params):
             owl.filter_clear()
             motor.state = 59
     elif motor.state == 59:
-#         if len(v) == 0:
-#             print("Отключился сигнал, повторный поиск")
-#             motor.state = 1
-#         el
+        #         if len(v) == 0:
+        #             print("Отключился сигнал, повторный поиск")
+        #             motor.state = 1
+        #         el
         if owl.filter_is_full():  # ждем заполнения фильтра, фиксируем среднее значение в лучшей позиции
             motor.avg_best = owl.filter_avg()
 
@@ -218,7 +221,7 @@ def handle_search(owl, motor, ros_params):
                 if value_cmp(motor.avg_bisector_diff, motor.avg_bisector_max, ros_params) > 0:
                     if value_cmp(motor.avg_bisector_diff, motor.avg_start, ros_params) > 0:
                         motor.angle(motor.angle_bisector_diff)  # даем задание на перемещение в середину плато
-            else:                        
+            else:
                 motor.angle(motor.angle_start)  # даем задание на перемещение в исходную позицию
             '''    
             elif value_cmp(motor.avg_start, motor.avg_best, ros_params) > 0:
@@ -254,6 +257,6 @@ def handle_search(owl, motor, ros_params):
 
             if owl.mode in (owl.MD_SEARCH_A, owl.MD_SEARCH_E):
                 owl.angle_diagram_clear()
-                
+
     else:
         raise

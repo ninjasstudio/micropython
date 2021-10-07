@@ -1,8 +1,11 @@
 from gc import collect
+
 collect()
 from math import pi, cos, sin  # degrees,
+
 collect()
 from Owl_API import value_sub  # value_cmp,
+
 collect()
 
 CIRCLE_ANGLE = 2.5  # 10  # угол отклонения оси антенны (должен быть меньше или равен углу направленности антенны)

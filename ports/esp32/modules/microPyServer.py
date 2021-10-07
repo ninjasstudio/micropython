@@ -43,9 +43,9 @@ class MicroPyServer(object):
         self._socket = None  # сокет сервера, слушатель
         self._skt = None  # connection # сокет соединения клиента
         self._client_address = None
-        
+
         self._success_time = time()
-        
+
         self.cargo = cargo
         self._request = None
 
@@ -143,7 +143,7 @@ class MicroPyServer(object):
                 print("{}:{} MicroPyServer connection {} error: receive:".format(self.host, self.port, self._skt.fileno()), e)
                 self.connect_close()
             return False
-        
+
     def send(self, do_close):
         if self._skt is not None:
             len_out_buf = len(self._out_buf)
@@ -268,7 +268,7 @@ class MicroPyServer(object):
 
         if self._skt is None:
             return
-        
+
 #         if (time() - self._success_time) > HEARTBEAT:
 #             self._out_index = 0
 #             self._out_buf = b'HEARTBEAT\n'
@@ -278,7 +278,7 @@ class MicroPyServer(object):
 
         if self._skt is None:
             return
-        
+
         eol_pos = self._in_buf.find(b"\n")
         if eol_pos >= 0:
             request = self._in_buf[:eol_pos]
@@ -286,8 +286,9 @@ class MicroPyServer(object):
             txt = self.find_route_txt(request)(self, self.cargo)
             self._out_buf += txt
             self.state = 3
-            
+
+
 #             print('self._in_buf', self._in_buf)
 #             print('self._out_buf', self._out_buf)
-        
+
         self.send(False)

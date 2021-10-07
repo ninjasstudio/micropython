@@ -1,9 +1,9 @@
-power_exit =  False
+power_exit = False
 try:
     from gc import collect
-    collect() 
+    collect()
     from esp32_ import LED, PWR_CTRL, ADC_PoE, STEP_1, STEP_2, DIR_1, DIR_2
-    collect() 
+    collect()
     from micropython import kbd_intr
     collect()
     from _thread import start_new_thread, exit

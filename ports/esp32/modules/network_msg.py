@@ -1,8 +1,10 @@
 from gc import collect
+
 collect()
 from network import AUTH_OPEN, AUTH_WEP, AUTH_WPA_PSK, AUTH_WPA2_PSK, AUTH_WPA_WPA2_PSK, \
     STAT_IDLE, STAT_CONNECTING, STAT_GOT_IP, \
     STAT_BEACON_TIMEOUT, STAT_NO_AP_FOUND, STAT_WRONG_PASSWORD, STAT_ASSOC_FAIL, STAT_HANDSHAKE_TIMEOUT
+
 collect()
 
 # wlan.scan() authmode messages are:

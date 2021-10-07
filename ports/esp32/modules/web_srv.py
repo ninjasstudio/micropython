@@ -1,17 +1,23 @@
 USE_ROUTEROS_API = 1
 
 from gc import collect, mem_free
+
 collect()
 from sys import exit
+
 collect()
 from ujson import dumps, loads
+
 collect()
 from network import WLAN, AP_IF, STA_IF
+
 collect()
 
 from WiFi import WiFi_login, save_config_WiFi  #, WiFi_start
+
 collect()
 from saves import *
+
 collect()
 
 try:
@@ -85,9 +91,9 @@ def show_index_page(server, arg, owl):
     checked0 = ""  # Нерухомо 0
     checked1 = ""  # Ручний 1
     checked2 = ""  # Огляд границь 2 3
-    checked4 = ""  # Пошук "Азимут" 4 
+    checked4 = ""  # Пошук "Азимут" 4
     checked5 = ""  # Пошук "Кут місця" 5
-    checked6 = ""  # Стеження хрестове 6 7 
+    checked6 = ""  # Стеження хрестове 6 7
     checked8 = ""  # Стеження кругове 8
     if owl.mode == owl.MD_OFF:
         checked0 = "checked"
@@ -188,7 +194,7 @@ def show_debug_page(server, arg, owl):
     s = html_debug.format(owl.expression, debug_value)
     collect()
     server.out(s)
-    
+
 
 #--------------------------------------------------------
 def do_save_config(server, arg, owl):
@@ -375,11 +381,11 @@ def do_get_config_PID(server, arg, owl):
 
 
 def do_get_debug(server, arg, owl):
-#     val = arg2val(arg)
-#     #print('arg, val', arg, val)
-#     if val is not None:
-#         if arg.find("expression=") > 0:
-#             owl.expression = val
+    #     val = arg2val(arg)
+    #     #print('arg, val', arg, val)
+    #     if val is not None:
+    #         if arg.find("expression=") > 0:
+    #             owl.expression = val
     show_debug_page(server, arg, owl)
 
 

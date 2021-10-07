@@ -1,10 +1,14 @@
 from gc import collect
+
 collect()
 from micropython import const
+
 collect()
 from ustruct import unpack
+
 collect()
 from utime import sleep_us, sleep_ms
+
 collect()
 
 # Author David Stenwall Wahlund (david at dafnet.se)

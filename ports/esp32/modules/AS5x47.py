@@ -1,8 +1,11 @@
 from gc import collect
+
 collect()
 from uctypes import BF_POS, BF_LEN, BFUINT16, BIG_ENDIAN, struct, bytes_at, addressof, sizeof
+
 collect()
 from utime import sleep_us
+
 collect()
 
 # ----------------------------------------------------------------------

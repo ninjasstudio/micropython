@@ -27,10 +27,13 @@ __version__ = "0.3.0"
 
 # pylint: disable=import-error
 from gc import collect
+
 collect()
 from ustruct import unpack, pack_into
+
 collect()
 from utime import sleep_ms
+
 collect()
 #from machine import I2C, Pin
 #collect()
