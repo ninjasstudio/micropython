@@ -80,15 +80,16 @@ int mp_vprintf(const mp_print_t *print, const char *fmt, va_list args);
 #endif
 
 // Debug messages during code developing with MP_PRN(level, ...) & MP_PRN_LEVEL.
-// An approximate hierarchy of debug levels (MP_PRN_LEVEL) is:
-// 0 - SUPPRES all messages. Use it in release version.
-// 1 - The most CRITICAL errors, often requiring a system reset, use message with this level if possible raising an exception.
+// An approximate hierarchy of debug levels MP_PRN_LEVEL is:
+// 0 - SUPPRESS all messages. Use it in the release version.
+// 1 - For the most CRITICAL errors, often requiring a system reset. Use a message with this level, if possible, raising an exception.
 // 2 - ERROR requiring program restart, use message with this level before raising an exception.
 // 3 - WARNING, something went wrong, but you can fix it with additional operations in code right now or may ignore it.
 // 4 - INFO, it is interesting and useful for understanding a bug.
-// 5 - DEBUG, more detaled info, dig deeper.
-// 6 - TRACE, show algorithm flow, like enter/exit a function.
-// In real you may use own classification of debug levels.
+// 5 - DEBUG, more detailed information, dig deeper.
+// 6 - TRACE, show a flow of the algorithm, like enter/exit a function.
+// In reality, you may use your own classification of debug levels.
+#if defined(MP_PRN_LEVEL) && (MP_PRN_LEVEL > 0)
 #define MP_PRN(level, ...) \
     do { \
         if (MP_PRN_LEVEL > 0) { \
@@ -99,6 +100,9 @@ int mp_vprintf(const mp_print_t *print, const char *fmt, va_list args);
             } \
         } \
     } while (0);
+#else
+#define MP_PRN(level, ...)
+#endif
 /*
 // How to use:
 // Set MP_PRN_LEVEL in developed *.C or *.CPP file, for example
@@ -122,12 +126,6 @@ void foo() {
 #define MP_PRN_LEVEL 3
 // Then add MP_PRN(3, ...) and when gets too much messages then change some messages to the next level MP_PRN(4, ...), or MP_PRN(2, ...)
 // Then you may change MP_PRN_LEVEL to 2(reduce printing), and finally to 0(supress printing).
-//
-// To switching off MP_PRN() from a compiled binary, use
-#ifdef MP_PRN
-    #undef MP_PRN
-    #define MP_PRN(level, ...)
-#endif
 */
 
 #endif // MICROPY_INCLUDED_PY_MPPRINT_H
