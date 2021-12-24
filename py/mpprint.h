@@ -92,12 +92,10 @@ int mp_vprintf(const mp_print_t *print, const char *fmt, va_list args);
 #if defined(MP_PRN_LEVEL) && (MP_PRN_LEVEL > 0)
 #define MP_PRN(level, ...) \
     do { \
-        if (MP_PRN_LEVEL > 0) { \
-            if ((0 < level) && (level <= MP_PRN_LEVEL)) { \
-                mp_printf(MP_PYTHON_PRINTER, "%d| ", level); \
-                mp_printf(MP_PYTHON_PRINTER, __VA_ARGS__); \
-                mp_printf(MP_PYTHON_PRINTER, "\n"); \
-            } \
+        if ((0 < level) && (level <= MP_PRN_LEVEL)) { \
+            mp_printf(MP_PYTHON_PRINTER, " %d|| ", level); \
+            mp_printf(MP_PYTHON_PRINTER, __VA_ARGS__); \
+            mp_printf(MP_PYTHON_PRINTER, " ||%d %s\n", __LINE__, __FILE__); \
         } \
     } while (0);
 #else
@@ -108,6 +106,7 @@ int mp_vprintf(const mp_print_t *print, const char *fmt, va_list args);
 // Set MP_PRN_LEVEL in developed *.C or *.CPP file, for example
 
 #define MP_PRN_LEVEL 1000 // show all messages
+
 // Add MP_PRN() macro in code, like
 void foo() {
     MP_PRN(6, "Enter foo()")
@@ -121,10 +120,9 @@ void foo() {
     MP_PRN(6, "Exit foo()")
 }
 
-// See usage in ports/esp32/esp32_pcnt.c and ports/esp32/machine_pwm.c
 // It is not a dogma. You may start debugging from level 3.
 #define MP_PRN_LEVEL 3
-// Then add MP_PRN(3, ...) and when gets too much messages then change some messages to the next level MP_PRN(4, ...), or MP_PRN(2, ...)
+// Then add MP_PRN(3, ...) and when gets too much messages then change some messages to the next level MP_PRN(4, ...), or MP_PRN(2, ...) etc.
 // Then you may change MP_PRN_LEVEL to 2(reduce printing), and finally to 0(supress printing).
 */
 
