@@ -80,11 +80,12 @@ class StepMotorPid(StepMotorBase):
         self.step_frequency = abs(step_frequency)
 
         if self.is_pulses == 0:
-            self.pwm = PWM(Pin(self.pin_step), freq=self.step_frequency, duty_u16=32768)  # 50%
+            self.pwm = PWM(Pin(self.pin_step), freq=self.step_frequency) # , duty_u16=32768)  # 50%
             self.is_pulses = 1
         else:
             self.pwm.freq(self.step_frequency)
-            self.pwm.duty_u16(32768)
+            # self.pwm.duty_u16(32768)
+            self.pwm.duty(512)
 
     def stop_pulses(self):
         if self.pwm is not None:
