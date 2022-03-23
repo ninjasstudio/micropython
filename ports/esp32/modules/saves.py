@@ -17,8 +17,8 @@ def save_config(owl):
 def save_config_offset(owl):
     try:
         with open("./config_offset.py", "w") as f:
-            # f.write("AZIM_OFFSET = {}\n".format(dumps(owl.azim.mover.offset)))
-            f.write("AZIM_OFFSET = 0.0\n")
+            f.write("AZIM_OFFSET = {}\n".format(dumps(owl.azim.mover.offset)))
+            # f.write("AZIM_OFFSET = 0.0\n")
             f.write("ELEV_OFFSET = {}\n".format(dumps(owl.elev.mover.offset)))
             f.close()
     except Exception as e:

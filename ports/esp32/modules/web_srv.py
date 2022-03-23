@@ -242,8 +242,8 @@ def do_handler(server, arg, owl):
 
 
 def SET0(owl):
-    owl.azim.mover.set0()
-    owl.elev.mover.set0()
+    # owl.azim.mover.set0()
+    # owl.elev.mover.set0()
     save_config_offset(owl)
 
     owl.azim.angle_best = None
