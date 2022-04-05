@@ -117,10 +117,9 @@ class StepMotorPid(StepMotorBase):
         if _d != self.direction:
             self.pid._integral = 0  # сброс интегральной составляющей при смене направления
 
-    #@micropython.native
-    #def set0(self):
-    #    self.offset = self.angle_now()
-    #    self.angle(0)
+    def set0(self):
+        self.offset = self.angle_now()
+        self.target = 0
 
     @property
     def angle(self):
@@ -133,10 +132,11 @@ class StepMotorPid(StepMotorBase):
     @target.setter
     def target(self, angle_target):
         if angle_target > self.max_limit:
-            angle_target = self.max_limit
+            self.angle_target = self.max_limit
         elif angle_target < self.min_limit:
-            angle_target = self.min_limit
-        self.angle_target = angle_target
+            self.angle_target = self.min_limit
+        else:    
+            self.angle_target = angle_target
 
     # -----------------------------------------------------------------------
     def go(self):
