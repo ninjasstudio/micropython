@@ -81,13 +81,13 @@ int mp_vprintf(const mp_print_t *print, const char *fmt, va_list args);
 
 // Debug messages during code developing with MP_PRN(level, ...) & MP_PRN_LEVEL.
 // An approximate hierarchy of debug levels MP_PRN_LEVEL is:
-// 0 - SUPPRESS all messages. Use it in the release version.
-// 1 - For the most CRITICAL errors, often requiring a system reset. Use a message with this level, if possible, raising an exception.
-// 2 - ERROR requiring program restart, use message with this level before raising an exception.
-// 3 - WARNING, something went wrong, but you can fix it with additional operations in code right now or may ignore it.
-// 4 - INFO, it is interesting and useful for understanding a bug.
-// 5 - DEBUG, more detailed information, dig deeper.
-// 6 - TRACE, show a flow of the algorithm, like enter/exit a function.
+#define MP_PRN_SUPPRESS 0 // SUPPRESS all messages. Use it in the release version.
+#define MP_PRN_CRITICAL 1 // For the most CRITICAL errors, often requiring a system reset. Use a message with this level, if possible, raising an exception.
+#define MP_PRN_ERROR 2 // ERROR requiring program restart, use message with this level before raising an exception.
+#define MP_PRN_WARNING 3 // WARNING, something went wrong, but you can fix it with additional operations in code right now or may ignore it.
+#define MP_PRN_INFO 4 // INFO, it is interesting and useful for understanding a bug.
+#define MP_PRN_DEBUG 5 // DEBUG, more detailed information, dig deeper.
+#define MP_PRN_TRACE 6 // TRACE, show a flow of the algorithm, like enter/exit a function.
 // In reality, you may use your own classification of debug levels.
 #if defined(MP_PRN_LEVEL) && (MP_PRN_LEVEL > 0)
 #define MP_PRN(level, ...) \
@@ -125,5 +125,15 @@ void foo() {
 // Then add MP_PRN(3, ...) and when gets too much messages then change some messages to the next level MP_PRN(4, ...), or MP_PRN(2, ...) etc.
 // Then you may change MP_PRN_LEVEL to 2(reduce printing), and finally to 0(supress printing).
 */
+
+#if 0
+#if MICROPY_DEBUG_VERBOSE // print debugging info
+#define DEBUG_PRINT (1)
+#define DEBUG_printf(...) MP_PRN(MP_PRN_DEBUG, __VA_ARGS__)
+#else // don't print debugging info
+#define DEBUG_PRINT (0)
+#define DEBUG_printf(...)
+#endif
+#endif
 
 #endif // MICROPY_INCLUDED_PY_MPPRINT_H
