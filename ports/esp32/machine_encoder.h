@@ -33,7 +33,6 @@ typedef struct _mp_pcnt_obj_t {
     int filter;
     enum edgeKind edge; // Counter only
     int8_t x124; // Encoder only
-    float scale;
 } mp_pcnt_obj_t;
 
 #pragma once

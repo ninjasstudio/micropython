@@ -279,21 +279,6 @@ STATIC mp_obj_t machine_PCNT_get_count(mp_obj_t self_obj) {
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(machine_PCNT_get_count_obj, machine_PCNT_get_count);
 
 // -----------------------------------------------------------------
-STATIC mp_obj_t machine_PCNT_scaled(size_t n_args, const mp_obj_t *args) {
-    mp_pcnt_obj_t *self = MP_OBJ_TO_PTR(args[0]);
-
-    int16_t count;
-    check_esp_err(pcnt_get_counter_value(self->unit, &count));
-    int64_t counter = self->counter;
-    if (n_args > 1) {
-        int64_t new_counter = mp_obj_get_float_to_f(args[1]) / self->scale;
-        self->counter = new_counter - count;
-    }
-    return mp_obj_new_float_from_f(self->scale * (counter + count));
-}
-STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(machine_PCNT_scaled_obj, 1, 2, machine_PCNT_scaled);
-
-// -----------------------------------------------------------------
 STATIC mp_obj_t machine_PCNT_pause(mp_obj_t self_obj) {
     mp_pcnt_obj_t *self = MP_OBJ_TO_PTR(self_obj);
 
@@ -389,13 +374,12 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_KW(machine_PCNT_irq_obj, 1, machine_PCNT_irq);
 // =================================================================
 // class Counter(object):
 STATIC void mp_machine_Counter_init_helper(mp_pcnt_obj_t *self, size_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_args) {
-    enum { ARG_src, ARG_direction, ARG_edge, ARG_filter, ARG_scale };
+    enum { ARG_src, ARG_direction, ARG_edge, ARG_filter };
     static const mp_arg_t allowed_args[] = {
         { MP_QSTR_src, MP_ARG_OBJ, {.u_obj = MP_OBJ_NULL} },
         { MP_QSTR_direction, MP_ARG_OBJ, {.u_obj = MP_OBJ_NULL} },
         { MP_QSTR_edge, MP_ARG_KW_ONLY | MP_ARG_INT, {.u_int = -1} },
         { MP_QSTR_filter_ns, MP_ARG_KW_ONLY | MP_ARG_INT, {.u_int = -1} },
-        { MP_QSTR_scale, MP_ARG_KW_ONLY | MP_ARG_OBJ, {.u_obj = MP_OBJ_NULL} },
     };
 
     mp_arg_val_t args[MP_ARRAY_SIZE(allowed_args)];
@@ -476,16 +460,6 @@ STATIC void mp_machine_Counter_init_helper(mp_pcnt_obj_t *self, size_t n_args, c
     }
     // Filter out bounces and noise
     set_filter_value(self->unit, self->filter);
-
-    if (args[ARG_scale].u_obj != MP_OBJ_NULL) {
-        if (mp_obj_is_type(args[ARG_scale].u_obj, &mp_type_float)) {
-            self->scale = mp_obj_get_float_to_f(args[ARG_scale].u_obj);
-        } else if (mp_obj_is_type(args[ARG_scale].u_obj, &mp_type_int)) {
-            self->scale = mp_obj_get_int(args[ARG_scale].u_obj);
-        } else {
-            mp_raise_TypeError(MP_ERROR_TEXT("scale argument muts be a number"));
-        }
-    }
     pcnts[self->unit] = self;
 
     // Enable interrupts for PCNT unit
@@ -504,9 +478,7 @@ STATIC void pcnt_init_new(mp_pcnt_obj_t *self, size_t n_args, const mp_obj_t *ar
     self->aPinNumber = PCNT_PIN_NOT_USED;
     self->bPinNumber = PCNT_PIN_NOT_USED;
 
-    self->scale = 1.0;
     self->filter = 0;
-
     self->counter = 0;
 
     self->status = 0;
@@ -563,7 +535,6 @@ STATIC void common_print_kw(const mp_print_t *print, mp_pcnt_obj_t *self) {
     if (self->handler_match2 != MP_OBJ_NULL) {
         mp_printf(print, ", match2=%ld", self->match2);
     }
-    mp_printf(print, ", filter_ns=%u, scale=%f)", get_filter_value_ns(self->unit), self->scale);
 }
 
 STATIC void machine_Counter_print(const mp_print_t *print, mp_obj_t self_obj, mp_print_kind_t kind) {
@@ -584,7 +555,6 @@ STATIC void machine_Counter_print(const mp_print_t *print, mp_obj_t self_obj, mp
     { MP_ROM_QSTR(MP_QSTR_deinit), MP_ROM_PTR(&machine_PCNT_deinit_obj) }, \
     { MP_ROM_QSTR(MP_QSTR_value), MP_ROM_PTR(&machine_PCNT_count_obj) }, \
     { MP_ROM_QSTR(MP_QSTR_get_value), MP_ROM_PTR(&machine_PCNT_get_count_obj) }, \
-    { MP_ROM_QSTR(MP_QSTR_scaled), MP_ROM_PTR(&machine_PCNT_scaled_obj) }, \
     { MP_ROM_QSTR(MP_QSTR_filter_ns), MP_ROM_PTR(&machine_PCNT_filter_obj) }, \
     { MP_ROM_QSTR(MP_QSTR_pause), MP_ROM_PTR(&machine_PCNT_pause_obj) }, \
     { MP_ROM_QSTR(MP_QSTR_resume), MP_ROM_PTR(&machine_PCNT_resume_obj) }, \
@@ -609,6 +579,7 @@ STATIC const mp_rom_map_elem_t machine_Counter_locals_dict_table[] = {
 STATIC MP_DEFINE_CONST_DICT(machine_Counter_locals_dict, machine_Counter_locals_dict_table);
 
 // Create the class-object itself
+/*
 const mp_obj_type_t machine_Counter_type = {
     { &mp_type_type },
     .name = MP_QSTR_Counter,
@@ -616,17 +587,25 @@ const mp_obj_type_t machine_Counter_type = {
     .print = machine_Counter_print,
     .locals_dict = (mp_obj_dict_t *)&machine_Counter_locals_dict,
 };
+*/
+MP_DEFINE_CONST_OBJ_TYPE(
+    machine_Counter_type,
+    MP_QSTR_Counter,
+    MP_TYPE_FLAG_NONE,
+    make_new, machine_Counter_make_new,
+    print, machine_Counter_print,
+    locals_dict, &machine_Counter_locals_dict
+    );
 
 // =================================================================
 // class Encoder(object):
 STATIC void mp_machine_Encoder_init_helper(mp_pcnt_obj_t *self, size_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_args) {
-    enum { ARG_phase_a, ARG_phase_b, ARG_x124, ARG_filter, ARG_scale };
+    enum { ARG_phase_a, ARG_phase_b, ARG_x124, ARG_filter };
     static const mp_arg_t allowed_args[] = {
         { MP_QSTR_phase_a, MP_ARG_OBJ, {.u_obj = MP_OBJ_NULL} },
         { MP_QSTR_phase_b, MP_ARG_OBJ, {.u_obj = MP_OBJ_NULL} },
         { MP_QSTR_x124, MP_ARG_KW_ONLY | MP_ARG_INT, {.u_int = -1} },
         { MP_QSTR_filter_ns, MP_ARG_KW_ONLY | MP_ARG_INT, {.u_int = -1} },
-        { MP_QSTR_scale, MP_ARG_KW_ONLY | MP_ARG_OBJ, {.u_obj = MP_OBJ_NULL} },
     };
 
     mp_arg_val_t args[MP_ARRAY_SIZE(allowed_args)];
@@ -709,16 +688,6 @@ STATIC void mp_machine_Encoder_init_helper(mp_pcnt_obj_t *self, size_t n_args, c
     }
     // Filter out bounces and noise
     set_filter_value(self->unit, self->filter);
-
-    if (args[ARG_scale].u_obj != MP_OBJ_NULL) {
-        if (mp_obj_is_type(args[ARG_scale].u_obj, &mp_type_float)) {
-            self->scale = mp_obj_get_float_to_f(args[ARG_scale].u_obj);
-        } else if (mp_obj_is_type(args[ARG_scale].u_obj, &mp_type_int)) {
-            self->scale = mp_obj_get_int(args[ARG_scale].u_obj);
-        } else {
-            mp_raise_TypeError(MP_ERROR_TEXT("scale argument muts be a number"));
-        }
-    }
     pcnts[self->unit] = self;
 
     // Enable interrupts for PCNT unit
@@ -776,6 +745,7 @@ STATIC const mp_rom_map_elem_t machine_Encoder_locals_dict_table[] = {
 STATIC MP_DEFINE_CONST_DICT(machine_Encoder_locals_dict, machine_Encoder_locals_dict_table);
 
 // Create the class-object itself
+/*
 const mp_obj_type_t machine_Encoder_type = {
     { &mp_type_type },
     .name = MP_QSTR_Encoder,
@@ -783,5 +753,14 @@ const mp_obj_type_t machine_Encoder_type = {
     .make_new = machine_Encoder_make_new,
     .locals_dict = (mp_obj_dict_t *)&machine_Encoder_locals_dict,
 };
+*/
+MP_DEFINE_CONST_OBJ_TYPE(
+    machine_Encoder_type,
+    MP_QSTR_Encoder,
+    MP_TYPE_FLAG_NONE,
+    make_new, machine_Encoder_make_new,
+    print, machine_Encoder_print,
+    locals_dict, &machine_Encoder_locals_dict
+    );
 
 #endif // MICROPY_PY_MACHINE_PCNT

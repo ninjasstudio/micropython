@@ -32,7 +32,7 @@ The Pulse Counter service.
 Constructor
 -----------
 
-.. class:: Counter(id, src=None, \*, edge=Counter.RISING, direction=Counter.UP, filter_ns=0, scale=1)
+.. class:: Counter(id, src=None, \*, edge=Counter.RISING, direction=Counter.UP, filter_ns=0)
 
     The Counter starts to count immediately. Filtering is disabled.
 
@@ -60,9 +60,6 @@ Constructor
         at the input to be recognized. The largest value is 12787ns (1023 * 1000000000 / APB_CLK_FREQ).
         The default is 0 – no filter.
 
-      - *scale* sets the scale value. The default value is 1. You may treat the scale
-        factor as **click per count**, **mm per count**, **inch per count** etc.
-
 Methods
 -------
 
@@ -82,18 +79,6 @@ Methods
 .. method:: Counter.value([value])
 
    Get, and optionally set, the counter *value* as a signed 64-bit integer.
-
-.. method:: Counter.scaled([value])
-
-   Get, and optionally set, the current scaled value of the Counter as a float.
-
-   Pseudocode is::
-
-    def scaled(self, scaled=None):
-        _scaled = self._value * self.scale
-        if scaled is not None:
-            self._value = round(scaled / self.scale)
-        return _scaled
 
 .. method:: Counter.irq(handler=None, trigger=Counter.IRQ_MATCH1 | Counter.IRQ_MATCH2 | Counter.IRQ_ZERO, value=0)
 
@@ -192,7 +177,7 @@ See `Quadrature encoder outputs.
 Constructor
 -----------
 
-.. class:: Encoder(id, phase_a=None, phase_b=None, \*, x124=4, filter_ns=0, scale=1, match1=0, match2=0)
+.. class:: Encoder(id, phase_a=None, phase_b=None, \*, x124=4, filter_ns=0, match1=0, match2=0)
 
     The Encoder starts to count immediately. Filtering is disabled.
 
@@ -212,10 +197,6 @@ Constructor
           - 1 - count the leading(or trailing) edges from one phase channel.
           - 2 - count the leading and trailing edges from one phase channel.
           - 4 - count both leading and trailing edges of both phase channels.
-
-      - *scale* sets the scale value. The default value is 1. You may treat the scale
-        factor as **click per impulse**, **revolution per impulse**, **angle per impulse** etc.
-        Hint: Set scale factor to 1/4 to balance the multiplier x124=4.
 
     These keywords are the same as the Counter keywords, see above:
       - *filter_ns*
