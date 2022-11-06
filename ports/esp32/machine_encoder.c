@@ -535,6 +535,7 @@ STATIC void common_print_kw(const mp_print_t *print, mp_pcnt_obj_t *self) {
     if (self->handler_match2 != MP_OBJ_NULL) {
         mp_printf(print, ", match2=%ld", self->match2);
     }
+    mp_printf(print, ")");
 }
 
 STATIC void machine_Counter_print(const mp_print_t *print, mp_obj_t self_obj, mp_print_kind_t kind) {
@@ -579,15 +580,6 @@ STATIC const mp_rom_map_elem_t machine_Counter_locals_dict_table[] = {
 STATIC MP_DEFINE_CONST_DICT(machine_Counter_locals_dict, machine_Counter_locals_dict_table);
 
 // Create the class-object itself
-/*
-const mp_obj_type_t machine_Counter_type = {
-    { &mp_type_type },
-    .name = MP_QSTR_Counter,
-    .make_new = machine_Counter_make_new,
-    .print = machine_Counter_print,
-    .locals_dict = (mp_obj_dict_t *)&machine_Counter_locals_dict,
-};
-*/
 MP_DEFINE_CONST_OBJ_TYPE(
     machine_Counter_type,
     MP_QSTR_Counter,
@@ -745,15 +737,6 @@ STATIC const mp_rom_map_elem_t machine_Encoder_locals_dict_table[] = {
 STATIC MP_DEFINE_CONST_DICT(machine_Encoder_locals_dict, machine_Encoder_locals_dict_table);
 
 // Create the class-object itself
-/*
-const mp_obj_type_t machine_Encoder_type = {
-    { &mp_type_type },
-    .name = MP_QSTR_Encoder,
-    .print = machine_Encoder_print,
-    .make_new = machine_Encoder_make_new,
-    .locals_dict = (mp_obj_dict_t *)&machine_Encoder_locals_dict,
-};
-*/
 MP_DEFINE_CONST_OBJ_TYPE(
     machine_Encoder_type,
     MP_QSTR_Encoder,
