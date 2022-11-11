@@ -32,7 +32,7 @@ The Pulse Counter service.
 Constructor
 -----------
 
-.. class:: Counter(id, src=None, \*, edge=Counter.RISING, direction=Counter.UP, filter_ns=0)
+.. class:: Counter(id, src=None, \*, direction=Counter.UP, _src=None, edge=Counter.RISING, filter_ns=0)
 
     The Counter starts to count immediately. Filtering is disabled.
 
@@ -49,6 +49,11 @@ Constructor
         - :ref:`machine.Pin <machine.Pin>` object to control the direction externally. If ``Pin.value()``:
            - 0 - count down,
            - 1 - count up.
+
+      - *_src* is the inverse pulse input :ref:`machine.Pin <machine.Pin>` to be monitored.
+        If the *_src* keyword is present then the *direction* keyword does not matter.
+        *src* and *_src* count in opposite directions, one in the UP direction
+        and the other in the DOWN direction, i.e. as an incremental/decremental counter.
 
       - *edge* specifies which edges of the input signal will be counted by Counter:
 

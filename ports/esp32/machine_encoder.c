@@ -374,16 +374,20 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_KW(machine_PCNT_irq_obj, 1, machine_PCNT_irq);
 // =================================================================
 // class Counter(object):
 STATIC void mp_machine_Counter_init_helper(mp_pcnt_obj_t *self, size_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_args) {
-    enum { ARG_src, ARG_direction, ARG_edge, ARG_filter };
+    enum { ARG_src, ARG_direction, ARG__src, ARG_edge, ARG_filter_ns };
     static const mp_arg_t allowed_args[] = {
         { MP_QSTR_src, MP_ARG_OBJ, {.u_obj = MP_OBJ_NULL} },
         { MP_QSTR_direction, MP_ARG_OBJ, {.u_obj = MP_OBJ_NULL} },
+        { MP_QSTR__src, MP_ARG_OBJ, {.u_obj = MP_OBJ_NULL} },
         { MP_QSTR_edge, MP_ARG_KW_ONLY | MP_ARG_INT, {.u_int = -1} },
         { MP_QSTR_filter_ns, MP_ARG_KW_ONLY | MP_ARG_INT, {.u_int = -1} },
     };
 
     mp_arg_val_t args[MP_ARRAY_SIZE(allowed_args)];
     mp_arg_parse_all(n_args, pos_args, kw_args, MP_ARRAY_SIZE(allowed_args), allowed_args, args);
+
+    self->bPinNumber = COUNTER_UP;
+    self->edge = RISING;
 
     if (args[ARG_src].u_obj != MP_OBJ_NULL) {
         self->aPinNumber = pin_or_int(args[ARG_src].u_obj);
@@ -392,14 +396,20 @@ STATIC void mp_machine_Counter_init_helper(mp_pcnt_obj_t *self, size_t n_args, c
         mp_raise_ValueError(MP_ERROR_TEXT(MP_ERROR_TEXT("src")));
     }
 
-    mp_obj_t direction = args[ARG_direction].u_obj;
-    if (direction != MP_OBJ_NULL) {
-        if (mp_obj_is_type(direction, &machine_pin_type)) {
-            self->bPinNumber = pin_or_int(direction);
-        } else {
-            self->bPinNumber = mp_obj_get_int(direction);
-            if (!((self->bPinNumber == COUNTER_UP) || (self->bPinNumber == COUNTER_DOWN))) {
-                mp_raise_ValueError(MP_ERROR_TEXT(MP_ERROR_TEXT("direction")));
+    if (args[ARG__src].u_obj != MP_OBJ_NULL) {
+        self->bPinNumber = pin_or_int(args[ARG__src].u_obj);
+        self->x124 = -1;
+    } else {
+        self->x124 = 0;
+        mp_obj_t direction = args[ARG_direction].u_obj;
+        if (direction != MP_OBJ_NULL) {
+            if (mp_obj_is_type(direction, &machine_pin_type)) {
+                self->bPinNumber = pin_or_int(direction);
+            } else {
+                self->bPinNumber = mp_obj_get_int(direction);
+                if (!((self->bPinNumber == COUNTER_UP) || (self->bPinNumber == COUNTER_DOWN))) {
+                    mp_raise_ValueError(MP_ERROR_TEXT(MP_ERROR_TEXT("direction")));
+                }
             }
         }
     }
@@ -447,16 +457,25 @@ STATIC void mp_machine_Counter_init_helper(mp_pcnt_obj_t *self, size_t n_args, c
     r_enc_config.unit = self->unit;
     r_enc_config.channel = PCNT_CHANNEL_1; // channel 1
 
-    r_enc_config.pos_mode = PCNT_COUNT_DIS; // disabling channel 1
-    r_enc_config.neg_mode = PCNT_COUNT_DIS; // disabling channel 1
+    if (args[ARG__src].u_obj != MP_OBJ_NULL) {
+        r_enc_config.pulse_gpio_num = self->bPinNumber; // Pulse input GPIO number, a negative value will be ignored
+        r_enc_config.ctrl_gpio_num = PCNT_PIN_NOT_USED; // Control signal input GPIO number, a negative value will be ignored
 
-    r_enc_config.lctrl_mode = PCNT_MODE_DISABLE; // disabling channel 1
-    r_enc_config.hctrl_mode = PCNT_MODE_DISABLE; // disabling channel 1
+        // What to do when control input is low or high?
+        r_enc_config.lctrl_mode = PCNT_MODE_REVERSE; // Reverse counting direction if low
+        r_enc_config.hctrl_mode = PCNT_MODE_KEEP; // Keep the primary counter mode if high
+    } else {
+        r_enc_config.pos_mode = PCNT_COUNT_DIS; // disabling channel 1
+        r_enc_config.neg_mode = PCNT_COUNT_DIS; // disabling channel 1
+
+        r_enc_config.lctrl_mode = PCNT_MODE_DISABLE; // disabling channel 1
+        r_enc_config.hctrl_mode = PCNT_MODE_DISABLE; // disabling channel 1
+    }
 
     check_esp_err(pcnt_unit_config(&r_enc_config));
 
-    if (args[ARG_filter].u_int != -1) {
-        self->filter = ns_to_filter(args[ARG_filter].u_int);
+    if (args[ARG_filter_ns].u_int != -1) {
+        self->filter = ns_to_filter(args[ARG_filter_ns].u_int);
     }
     // Filter out bounces and noise
     set_filter_value(self->unit, self->filter);
@@ -504,16 +523,13 @@ STATIC void pcnt_init_new(mp_pcnt_obj_t *self, size_t n_args, const mp_obj_t *ar
 }
 
 STATIC mp_obj_t machine_Counter_make_new(const mp_obj_type_t *type, size_t n_args, size_t n_kw, const mp_obj_t *args) {
-    mp_arg_check_num(n_args, n_kw, 1, 5, true);
+    mp_arg_check_num(n_args, n_kw, 1, 4, true);
 
     // create Counter object for the given unit
     mp_pcnt_obj_t *self = m_new_obj(mp_pcnt_obj_t);
     self->base.type = &machine_Counter_type;
 
     pcnt_init_new(self, n_args, args);
-
-    self->bPinNumber = COUNTER_UP;
-    self->edge = RISING;
 
     // Process the remaining parameters
     mp_map_t kw_args;
@@ -535,17 +551,21 @@ STATIC void common_print_kw(const mp_print_t *print, mp_pcnt_obj_t *self) {
     if (self->handler_match2 != MP_OBJ_NULL) {
         mp_printf(print, ", match2=%ld", self->match2);
     }
-    mp_printf(print, ")");
+    mp_printf(print, ", filter_ns=%d)", filter_to_ns(self->filter));
 }
 
 STATIC void machine_Counter_print(const mp_print_t *print, mp_obj_t self_obj, mp_print_kind_t kind) {
     mp_pcnt_obj_t *self = MP_OBJ_TO_PTR(self_obj);
 
-    mp_printf(print, "Counter(%u, src=Pin(%u), direction=", self->unit, self->aPinNumber);
-    if (self->bPinNumber >= 0) {
-        mp_printf(print, "Pin(%u)", self->bPinNumber);
+    mp_printf(print, "Counter(%u, src=Pin(%u)", self->unit, self->aPinNumber);
+    if (self->x124 < 0) {
+        mp_printf(print, ", _src=Pin(%u)", self->bPinNumber);
     } else {
-        mp_printf(print, "Counter.%s", self->bPinNumber == COUNTER_UP ? "UP" : "DOWN");
+        if (self->bPinNumber >= 0) {
+            mp_printf(print, ", direction=Pin(%u)", self->bPinNumber);
+        } else {
+            mp_printf(print, ", direction=Counter.%s", self->bPinNumber == COUNTER_UP ? "UP" : "DOWN");
+        }
     }
     mp_printf(print, ", edge=Counter.%s", self->edge == RISING ? "RISING" : self->edge == FALLING ? "FALLING" : "RISING | Counter.FALLING");
     common_print_kw(print, self);
@@ -592,7 +612,7 @@ MP_DEFINE_CONST_OBJ_TYPE(
 // =================================================================
 // class Encoder(object):
 STATIC void mp_machine_Encoder_init_helper(mp_pcnt_obj_t *self, size_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_args) {
-    enum { ARG_phase_a, ARG_phase_b, ARG_x124, ARG_filter };
+    enum { ARG_phase_a, ARG_phase_b, ARG_x124, ARG_filter_ns };
     static const mp_arg_t allowed_args[] = {
         { MP_QSTR_phase_a, MP_ARG_OBJ, {.u_obj = MP_OBJ_NULL} },
         { MP_QSTR_phase_b, MP_ARG_OBJ, {.u_obj = MP_OBJ_NULL} },
@@ -675,8 +695,8 @@ STATIC void mp_machine_Encoder_init_helper(mp_pcnt_obj_t *self, size_t n_args, c
         check_esp_err(pcnt_unit_config(&r_enc_config));
     }
 
-    if (args[ARG_filter].u_int != -1) {
-        self->filter = ns_to_filter(args[ARG_filter].u_int);
+    if (args[ARG_filter_ns].u_int != -1) {
+        self->filter = ns_to_filter(args[ARG_filter_ns].u_int);
     }
     // Filter out bounces and noise
     set_filter_value(self->unit, self->filter);

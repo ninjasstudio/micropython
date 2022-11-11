@@ -1,4 +1,5 @@
-#pragma once
+#ifndef MICROPY_INCLUDED_MACHINE_ENCODER_H
+#define MICROPY_INCLUDED_MACHINE_ENCODER_H
 
 #define INT16_ROLL 32767
 
@@ -32,7 +33,7 @@ typedef struct _mp_pcnt_obj_t {
 
     int filter;
     enum edgeKind edge; // Counter only
-    int8_t x124; // Encoder only
+    int8_t x124; // Encoder: multiplier 124 // Counter: 0 is 'direction=' keyword used, -1 is '_src=' keyword used
 } mp_pcnt_obj_t;
 
-#pragma once
+#endif // MICROPY_INCLUDED_MACHINE_ENCODER_H
