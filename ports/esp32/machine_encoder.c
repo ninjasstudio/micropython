@@ -364,8 +364,10 @@ STATIC mp_obj_t machine_PCNT_irq(mp_uint_t n_pos_args, const mp_obj_t *pos_args,
             self->handler_zero = handler;
             pcnt_event_enable(self->unit, EVT_ZERO);
         }
+        /*
         check_esp_err(pcnt_counter_clear(self->unit));
         self->counter = 0;
+        */
     }
     return mp_const_none;
 }
@@ -574,6 +576,7 @@ STATIC void machine_Counter_print(const mp_print_t *print, mp_obj_t self_obj, mp
 // Register class methods
 #define COMMON_METHODS \
     { MP_ROM_QSTR(MP_QSTR_deinit), MP_ROM_PTR(&machine_PCNT_deinit_obj) }, \
+    { MP_ROM_QSTR(MP_QSTR___del__), MP_ROM_PTR(&machine_PCNT_deinit_obj) }, \
     { MP_ROM_QSTR(MP_QSTR_value), MP_ROM_PTR(&machine_PCNT_count_obj) }, \
     { MP_ROM_QSTR(MP_QSTR_get_value), MP_ROM_PTR(&machine_PCNT_get_count_obj) }, \
     { MP_ROM_QSTR(MP_QSTR_filter_ns), MP_ROM_PTR(&machine_PCNT_filter_obj) }, \
