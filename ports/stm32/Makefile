@@ -437,17 +437,17 @@ HAL_SRC_C += $(addprefix $(STM32LIB_HAL_BASE)/Src/stm32$(MCU_SERIES)xx_,\
 	)
 endif
 
-ifeq ($(MCU_SERIES),$(filter $(MCU_SERIES),g0 g4))
-HAL_SRC_C += $(addprefix $(STM32LIB_HAL_BASE)/Src/stm32$(MCU_SERIES)xx_, hal_fdcan.c)
-endif
-
-ifeq ($(CMSIS_MCU),$(filter $(CMSIS_MCU),STM32H743xx STM32H747xx STM32H750xx STM32H7A3xx STM32H7A3xxQ STM32H7B3xx STM32H7B3xxQ))
-HAL_SRC_C += $(addprefix $(STM32LIB_HAL_BASE)/Src/stm32$(MCU_SERIES)xx_, hal_fdcan.c)
-else ifeq ($(MCU_SERIES),$(filter $(MCU_SERIES),f0 f4 f7 h7))
+ifeq ($(MCU_SERIES),$(filter $(MCU_SERIES),f0 f4 f7))
 HAL_SRC_C += $(addprefix $(STM32LIB_HAL_BASE)/Src/stm32$(MCU_SERIES)xx_, hal_can.c)
+else ifeq ($(MCU_SERIES),$(filter $(MCU_SERIES),g0 g4 h7))
+HAL_SRC_C += $(addprefix $(STM32LIB_HAL_BASE)/Src/stm32$(MCU_SERIES)xx_, hal_fdcan.c)
 else ifeq ($(MCU_SERIES),$(filter $(MCU_SERIES),l4))
 HAL_SRC_C += $(addprefix $(STM32LIB_HAL_BASE)/Src/Legacy/stm32$(MCU_SERIES)xx_, hal_can.c)
 $(BUILD)/$(STM32LIB_HAL_BASE)/Src/Legacy/stm32$(MCU_SERIES)xx_hal_can.o: CFLAGS += -Wno-error=cpp
+endif
+
+ifeq ($(CMSIS_MCU),$(filter $(CMSIS_MCU),STM32H747xx))
+    HAL_SRC_C += $(addprefix $(STM32LIB_HAL_BASE)/Src/stm32$(MCU_SERIES)xx_, hal_hsem.c)
 endif
 
 ifeq ($(MCU_SERIES),$(filter $(MCU_SERIES),f0 f4 f7 g0 l0))
@@ -487,10 +487,7 @@ SRC_C += mpbtstackport.c
 MICROPY_BLUETOOTH_BTSTACK_H4 ?= 1
 endif
 
-ifeq ($(MICROPY_PY_NETWORK_CYW43),1)
-DRIVERS_SRC_C += drivers/cyw43/cywbt.c
-endif
-endif
+endif # MICROPY_PY_BLUETOOTH
 
 # SRC_O should be placed first to work around this LTO bug with binutils <2.35:
 # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=83967
