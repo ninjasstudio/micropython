@@ -318,7 +318,7 @@ STATIC void set_duty_u16(machine_pwm_obj_t *self, int duty) {
     /*
     // Bug: Sometimes duty is not set right now.
     // Not a bug. It's a feature. The duty is applied at the beginning of the next signal period.
-    // Bug: It has been experimentally established that the duty is setted during 2 signal periods, but 1 period is expected.
+    // Bug: It has been experimentally established that the duty is seted during 2 signal periods, but 1 period is expected.
     // See https://github.com/espressif/esp-idf/issues/7288
     #if MP_PRN_LEVEL >= MP_PRN_WARNING
     //ledc_timer_config_t *timer = &timers[self->mode][self->timer];
