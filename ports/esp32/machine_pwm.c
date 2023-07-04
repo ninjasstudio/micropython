@@ -41,6 +41,7 @@
 #include "soc/soc_caps.h"
 #include "driver/ledc.h"
 #include "esp_err.h"
+#include "soc/gpio_sig_map.h"
 
 // Total number of channels
 #define PWM_CHANNEL_MAX (LEDC_SPEED_MODE_MAX * LEDC_CHANNEL_MAX)
@@ -201,13 +202,13 @@ STATIC void pwm_deinit(int mode, int channel) {
             // Mark it unused, and tell the hardware to stop routing
             check_esp_err(ledc_stop(mode, channel, 0));
             // Disable ledc signal for the pin
-            // gpio_matrix_out(pin, SIG_GPIO_OUT_IDX, false, false);
+            // esp_rom_gpio_connect_out_signal(pin, SIG_GPIO_OUT_IDX, false, false);
             if (mode == LEDC_LOW_SPEED_MODE) {
-                gpio_matrix_out(pin, LEDC_LS_SIG_OUT0_IDX + channel, false, true);
+                esp_rom_gpio_connect_out_signal(pin, LEDC_LS_SIG_OUT0_IDX + channel, false, true);
             } else {
                 #if LEDC_SPEED_MODE_MAX > 1
                 #if CONFIG_IDF_TARGET_ESP32
-                gpio_matrix_out(pin, LEDC_HS_SIG_OUT0_IDX + channel, false, true);
+                esp_rom_gpio_connect_out_signal(pin, LEDC_HS_SIG_OUT0_IDX + channel, false, true);
                 #else
                 #error Add supported CONFIG_IDF_TARGET_ESP32_xxx
                 #endif
@@ -370,10 +371,10 @@ STATIC void set_freq(machine_pwm_obj_t *self, unsigned int freq) {
     ledc_timer_config_t *timer = &timers[self->mode][self->timer];
     if (timer->freq_hz != freq) {
         // Find the highest bit resolution for the requested frequency
-        unsigned int i = LEDC_APB_CLK_HZ; // 80 MHz
+        unsigned int i = APB_CLK_FREQ; // 80 MHz
         #if SOC_LEDC_SUPPORT_REF_TICK
         if (freq < EMPIRIC_FREQ) {
-            i = LEDC_REF_CLK_HZ; // 1 MHz
+            i = REF_CLK_FREQ; // 1 MHz
         }
         #endif
 
@@ -391,7 +392,6 @@ STATIC void set_freq(machine_pwm_obj_t *self, unsigned int freq) {
             f = 1.0;
         }
         i = (unsigned int)roundf((float)i / f);
-        #endif
 
         unsigned int res = 0;
         for (; i > 1; i >>= 1) {
@@ -735,7 +735,7 @@ STATIC void mp_machine_pwm_deinit(machine_pwm_obj_t *self) {
     #endif
 }
 
-// Set's and get's methods of PWM class
+// Set and get methods of PWM class
 
 STATIC mp_obj_t mp_machine_pwm_freq_get(machine_pwm_obj_t *self) {
     pwm_is_active(self);

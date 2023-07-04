@@ -53,7 +53,7 @@ low all of the time.
 
 * Example of a **smooth frequency change**::
 
-    from utime import sleep
+    from time import sleep
     from machine import Pin, PWM
 
     F_MIN = 100
@@ -109,7 +109,7 @@ low all of the time.
 
 * Example of a **smooth duty change**::
 
-    from utime import sleep
+    from time import sleep
     from machine import Pin, PWM
 
     DUTY_MAX = 2**16 - 1
