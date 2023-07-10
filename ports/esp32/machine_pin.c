@@ -31,6 +31,7 @@
 
 #include "driver/gpio.h"
 #include "driver/rtc_io.h"
+#include "hal/gpio_ll.h"
 
 #include "py/runtime.h"
 #include "py/mphal.h"
@@ -41,13 +42,12 @@
 #include "modesp32.h"
 
 #if CONFIG_IDF_TARGET_ESP32C3
-#include "hal/gpio_ll.h"
+#include "soc/usb_serial_jtag_reg.h"
 #endif
 
 // Used to implement a range of pull capabilities
 #define GPIO_PULL_DOWN (1)
 #define GPIO_PULL_UP   (2)
-#define GPIO_PULL_HOLD (4)
 
 #if CONFIG_IDF_TARGET_ESP32
 #define GPIO_FIRST_NON_OUTPUT (34)
@@ -65,7 +65,7 @@ typedef struct _machine_pin_irq_obj_t {
     gpio_num_t id;
 } machine_pin_irq_obj_t;
 
-STATIC const machine_pin_obj_t machine_pin_obj[] = {
+STATIC const machine_pin_obj_t machine_pin_obj[GPIO_NUM_MAX] = {
     #if CONFIG_IDF_TARGET_ESP32
 
     {{&machine_pin_type}, GPIO_NUM_0},
@@ -93,7 +93,7 @@ STATIC const machine_pin_obj_t machine_pin_obj[] = {
     #endif
     {{&machine_pin_type}, GPIO_NUM_18},
     {{&machine_pin_type}, GPIO_NUM_19},
-    {{NULL}, -1},
+    {{&machine_pin_type}, GPIO_NUM_20},
     {{&machine_pin_type}, GPIO_NUM_21},
     {{&machine_pin_type}, GPIO_NUM_22},
     {{&machine_pin_type}, GPIO_NUM_23},
@@ -188,11 +188,19 @@ STATIC const machine_pin_obj_t machine_pin_obj[] = {
     {{NULL}, -1}, // 30 FLASH/PSRAM
     {{NULL}, -1}, // 31 FLASH/PSRAM
     {{NULL}, -1}, // 32 FLASH/PSRAM
+    #if CONFIG_SPIRAM_MODE_OCT
+    {{NULL}, -1}, // 33 FLASH/PSRAM
+    {{NULL}, -1}, // 34 FLASH/PSRAM
+    {{NULL}, -1}, // 35 FLASH/PSRAM
+    {{NULL}, -1}, // 36 FLASH/PSRAM
+    {{NULL}, -1}, // 37 FLASH/PSRAM
+    #else
     {{&machine_pin_type}, GPIO_NUM_33},
     {{&machine_pin_type}, GPIO_NUM_34},
     {{&machine_pin_type}, GPIO_NUM_35},
     {{&machine_pin_type}, GPIO_NUM_36},
     {{&machine_pin_type}, GPIO_NUM_37},
+    #endif
     {{&machine_pin_type}, GPIO_NUM_38},
     {{&machine_pin_type}, GPIO_NUM_39}, // MTCLK
     {{&machine_pin_type}, GPIO_NUM_40}, // MTDO
@@ -214,7 +222,7 @@ STATIC const machine_pin_obj_t machine_pin_obj[] = {
 };
 
 // forward declaration
-STATIC const machine_pin_irq_obj_t machine_pin_irq_object[];
+STATIC const machine_pin_irq_obj_t machine_pin_irq_object[GPIO_NUM_MAX];
 
 void machine_pins_init(void) {
     static bool did_install = false;
@@ -253,13 +261,15 @@ STATIC void machine_pin_print(const mp_print_t *print, mp_obj_t self_in, mp_prin
     mp_printf(print, "Pin(%u)", self->id);
 }
 
-// pin.init(mode, pull=None, *, value)
+// pin.init(mode=None, pull=-1, *, value, drive, hold)
 STATIC mp_obj_t machine_pin_obj_init_helper(const machine_pin_obj_t *self, size_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_args) {
-    enum { ARG_mode, ARG_pull, ARG_value };
+    enum { ARG_mode, ARG_pull, ARG_value, ARG_drive, ARG_hold };
     static const mp_arg_t allowed_args[] = {
         { MP_QSTR_mode, MP_ARG_OBJ, {.u_obj = mp_const_none}},
         { MP_QSTR_pull, MP_ARG_OBJ, {.u_obj = MP_OBJ_NEW_SMALL_INT(-1)}},
         { MP_QSTR_value, MP_ARG_KW_ONLY | MP_ARG_OBJ, {.u_obj = MP_OBJ_NULL}},
+        { MP_QSTR_drive, MP_ARG_KW_ONLY | MP_ARG_OBJ, {.u_obj = MP_OBJ_NULL}},
+        { MP_QSTR_hold, MP_ARG_KW_ONLY | MP_ARG_OBJ, {.u_obj = MP_OBJ_NULL}},
     };
 
     // parse args
@@ -277,16 +287,24 @@ STATIC mp_obj_t machine_pin_obj_init_helper(const machine_pin_obj_t *self, size_
 
     #if CONFIG_IDF_TARGET_ESP32C3
     if (self->id == 18 || self->id == 19) {
-        CLEAR_PERI_REG_MASK(USB_DEVICE_CONF0_REG, USB_DEVICE_USB_PAD_ENABLE);
+        CLEAR_PERI_REG_MASK(USB_SERIAL_JTAG_CONF0_REG, USB_SERIAL_JTAG_USB_PAD_ENABLE);
     }
     #endif
 
     // configure the pin for gpio
-    gpio_pad_select_gpio(self->id);
+    esp_rom_gpio_pad_select_gpio(self->id);
 
     // set initial value (do this before configuring mode/pull)
     if (args[ARG_value].u_obj != MP_OBJ_NULL) {
         gpio_set_level(self->id, mp_obj_is_true(args[ARG_value].u_obj));
+    }
+
+    // set drive capability (do this before configuring mode)
+    if (args[ARG_drive].u_obj != MP_OBJ_NULL && GPIO_IS_VALID_OUTPUT_GPIO(self->id)) {
+        mp_int_t strength = mp_obj_get_int(args[ARG_drive].u_obj);
+        if (0 <= strength && strength < GPIO_DRIVE_CAP_MAX) {
+            gpio_set_drive_capability(self->id, strength);
+        }
     }
 
     // configure mode
@@ -316,10 +334,15 @@ STATIC mp_obj_t machine_pin_obj_init_helper(const machine_pin_obj_t *self, size_
         } else {
             gpio_pullup_dis(self->id);
         }
-        if (mode & GPIO_PULL_HOLD) {
+    }
+
+    // configure pad hold
+    if (args[ARG_hold].u_obj != MP_OBJ_NULL && GPIO_IS_VALID_OUTPUT_GPIO(self->id)) {
+        // always disable pad hold to apply outstanding config changes
+        gpio_hold_dis(self->id);
+        // (re-)enable pad hold if requested
+        if (mp_obj_is_true(args[ARG_hold].u_obj)) {
             gpio_hold_en(self->id);
-        } else if (GPIO_IS_VALID_OUTPUT_GPIO(self->id)) {
-            gpio_hold_dis(self->id);
         }
     }
 
@@ -397,7 +420,7 @@ STATIC mp_obj_t machine_pin_irq(size_t n_args, const mp_obj_t *pos_args, mp_map_
     enum { ARG_handler, ARG_trigger, ARG_wake };
     static const mp_arg_t allowed_args[] = {
         { MP_QSTR_handler, MP_ARG_OBJ, {.u_obj = mp_const_none} },
-        { MP_QSTR_trigger, MP_ARG_INT, {.u_int = GPIO_PIN_INTR_POSEDGE | GPIO_PIN_INTR_NEGEDGE} },
+        { MP_QSTR_trigger, MP_ARG_INT, {.u_int = GPIO_INTR_POSEDGE | GPIO_INTR_NEGEDGE} },
         { MP_QSTR_wake, MP_ARG_OBJ, {.u_obj = mp_const_none} },
     };
     machine_pin_obj_t *self = MP_OBJ_TO_PTR(pos_args[0]);
@@ -410,7 +433,7 @@ STATIC mp_obj_t machine_pin_irq(size_t n_args, const mp_obj_t *pos_args, mp_map_
         uint32_t trigger = args[ARG_trigger].u_int;
         mp_obj_t wake_obj = args[ARG_wake].u_obj;
 
-        if ((trigger == GPIO_PIN_INTR_LOLEVEL || trigger == GPIO_PIN_INTR_HILEVEL) && wake_obj != mp_const_none) {
+        if ((trigger == GPIO_INTR_LOW_LEVEL || trigger == GPIO_INTR_HIGH_LEVEL) && wake_obj != mp_const_none) {
             mp_int_t wake;
             if (mp_obj_get_int_maybe(wake_obj, &wake)) {
                 if (wake < 2 || wake > 7) {
@@ -434,7 +457,7 @@ STATIC mp_obj_t machine_pin_irq(size_t n_args, const mp_obj_t *pos_args, mp_map_
                 mp_raise_ValueError(MP_ERROR_TEXT("no resources"));
             }
 
-            machine_rtc_config.ext0_level = trigger == GPIO_PIN_INTR_LOLEVEL ? 0 : 1;
+            machine_rtc_config.ext0_level = trigger == GPIO_INTR_LOW_LEVEL ? 0 : 1;
             machine_rtc_config.ext0_wake_types = wake;
         } else {
             if (machine_rtc_config.ext0_pin == self->id) {
@@ -471,11 +494,14 @@ STATIC const mp_rom_map_elem_t machine_pin_locals_dict_table[] = {
     { MP_ROM_QSTR(MP_QSTR_OPEN_DRAIN), MP_ROM_INT(GPIO_MODE_INPUT_OUTPUT_OD) },
     { MP_ROM_QSTR(MP_QSTR_PULL_UP), MP_ROM_INT(GPIO_PULL_UP) },
     { MP_ROM_QSTR(MP_QSTR_PULL_DOWN), MP_ROM_INT(GPIO_PULL_DOWN) },
-    { MP_ROM_QSTR(MP_QSTR_PULL_HOLD), MP_ROM_INT(GPIO_PULL_HOLD) },
-    { MP_ROM_QSTR(MP_QSTR_IRQ_RISING), MP_ROM_INT(GPIO_PIN_INTR_POSEDGE) },
-    { MP_ROM_QSTR(MP_QSTR_IRQ_FALLING), MP_ROM_INT(GPIO_PIN_INTR_NEGEDGE) },
-    { MP_ROM_QSTR(MP_QSTR_WAKE_LOW), MP_ROM_INT(GPIO_PIN_INTR_LOLEVEL) },
-    { MP_ROM_QSTR(MP_QSTR_WAKE_HIGH), MP_ROM_INT(GPIO_PIN_INTR_HILEVEL) },
+    { MP_ROM_QSTR(MP_QSTR_IRQ_RISING), MP_ROM_INT(GPIO_INTR_POSEDGE) },
+    { MP_ROM_QSTR(MP_QSTR_IRQ_FALLING), MP_ROM_INT(GPIO_INTR_NEGEDGE) },
+    { MP_ROM_QSTR(MP_QSTR_WAKE_LOW), MP_ROM_INT(GPIO_INTR_LOW_LEVEL) },
+    { MP_ROM_QSTR(MP_QSTR_WAKE_HIGH), MP_ROM_INT(GPIO_INTR_HIGH_LEVEL) },
+    { MP_ROM_QSTR(MP_QSTR_DRIVE_0), MP_ROM_INT(GPIO_DRIVE_CAP_0) },
+    { MP_ROM_QSTR(MP_QSTR_DRIVE_1), MP_ROM_INT(GPIO_DRIVE_CAP_1) },
+    { MP_ROM_QSTR(MP_QSTR_DRIVE_2), MP_ROM_INT(GPIO_DRIVE_CAP_2) },
+    { MP_ROM_QSTR(MP_QSTR_DRIVE_3), MP_ROM_INT(GPIO_DRIVE_CAP_3) },
 };
 
 STATIC mp_uint_t pin_ioctl(mp_obj_t self_in, mp_uint_t request, uintptr_t arg, int *errcode) {
@@ -500,22 +526,23 @@ STATIC const mp_pin_p_t pin_pin_p = {
     .ioctl = pin_ioctl,
 };
 
-const mp_obj_type_t machine_pin_type = {
-    { &mp_type_type },
-    .name = MP_QSTR_Pin,
-    .print = machine_pin_print,
-    .make_new = mp_pin_make_new,
-    .call = machine_pin_call,
-    .protocol = &pin_pin_p,
-    .locals_dict = (mp_obj_t)&machine_pin_locals_dict,
-};
+MP_DEFINE_CONST_OBJ_TYPE(
+    machine_pin_type,
+    MP_QSTR_Pin,
+    MP_TYPE_FLAG_NONE,
+    make_new, mp_pin_make_new,
+    print, machine_pin_print,
+    call, machine_pin_call,
+    protocol, &pin_pin_p,
+    locals_dict, &machine_pin_locals_dict
+    );
 
 /******************************************************************************/
 // Pin IRQ object
 
 STATIC const mp_obj_type_t machine_pin_irq_type;
 
-STATIC const machine_pin_irq_obj_t machine_pin_irq_object[] = {
+STATIC const machine_pin_irq_obj_t machine_pin_irq_object[GPIO_NUM_MAX] = {
     #if CONFIG_IDF_TARGET_ESP32
 
     {{&machine_pin_irq_type}, GPIO_NUM_0},
@@ -543,7 +570,7 @@ STATIC const machine_pin_irq_obj_t machine_pin_irq_object[] = {
     #endif
     {{&machine_pin_irq_type}, GPIO_NUM_18},
     {{&machine_pin_irq_type}, GPIO_NUM_19},
-    {{NULL}, -1},
+    {{&machine_pin_irq_type}, GPIO_NUM_20},
     {{&machine_pin_irq_type}, GPIO_NUM_21},
     {{&machine_pin_irq_type}, GPIO_NUM_22},
     {{&machine_pin_irq_type}, GPIO_NUM_23},
@@ -633,11 +660,19 @@ STATIC const machine_pin_irq_obj_t machine_pin_irq_object[] = {
     {{NULL}, -1}, // 30 FLASH/PSRAM
     {{NULL}, -1}, // 31 FLASH/PSRAM
     {{NULL}, -1}, // 32 FLASH/PSRAM
+    #if CONFIG_SPIRAM_MODE_OCT
+    {{NULL}, -1}, // 33 FLASH/PSRAM
+    {{NULL}, -1}, // 34 FLASH/PSRAM
+    {{NULL}, -1}, // 35 FLASH/PSRAM
+    {{NULL}, -1}, // 36 FLASH/PSRAM
+    {{NULL}, -1}, // 37 FLASH/PSRAM
+    #else
     {{&machine_pin_irq_type}, GPIO_NUM_33},
     {{&machine_pin_irq_type}, GPIO_NUM_34},
     {{&machine_pin_irq_type}, GPIO_NUM_35},
     {{&machine_pin_irq_type}, GPIO_NUM_36},
     {{&machine_pin_irq_type}, GPIO_NUM_37},
+    #endif
     {{&machine_pin_irq_type}, GPIO_NUM_38},
     {{&machine_pin_irq_type}, GPIO_NUM_39},
     {{&machine_pin_irq_type}, GPIO_NUM_40},
@@ -682,9 +717,12 @@ STATIC const mp_rom_map_elem_t machine_pin_irq_locals_dict_table[] = {
 };
 STATIC MP_DEFINE_CONST_DICT(machine_pin_irq_locals_dict, machine_pin_irq_locals_dict_table);
 
-STATIC const mp_obj_type_t machine_pin_irq_type = {
-    { &mp_type_type },
-    .name = MP_QSTR_IRQ,
-    .call = machine_pin_irq_call,
-    .locals_dict = (mp_obj_dict_t *)&machine_pin_irq_locals_dict,
-};
+STATIC MP_DEFINE_CONST_OBJ_TYPE(
+    machine_pin_irq_type,
+    MP_QSTR_IRQ,
+    MP_TYPE_FLAG_NONE,
+    call, machine_pin_irq_call,
+    locals_dict, &machine_pin_irq_locals_dict
+    );
+
+MP_REGISTER_ROOT_POINTER(mp_obj_t machine_pin_irq_handler[GPIO_PIN_COUNT]);

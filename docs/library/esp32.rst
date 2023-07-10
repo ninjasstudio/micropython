@@ -18,6 +18,11 @@ Functions
     Configure whether or not a touch will wake the device from sleep.
     *wake* should be a boolean value.
 
+.. function:: wake_on_ulp(wake)
+
+    Configure whether or not the Ultra-Low-Power co-processor can wake the
+    device from sleep. *wake* should be a boolean value.
+
 .. function:: wake_on_ext0(pin, level)
 
     Configure how EXT0 wakes the device from sleep.  *pin* can be ``None``
@@ -30,13 +35,14 @@ Functions
     or a tuple/list of valid Pin objects.  *level* should be ``esp32.WAKEUP_ALL_LOW``
     or ``esp32.WAKEUP_ANY_HIGH``.
 
+.. function:: gpio_deep_sleep_hold(enable)
+
+    Configure whether non-RTC GPIO pin configuration is retained during
+    deep-sleep mode for held pads. *enable* should be a boolean value.
+
 .. function:: raw_temperature()
 
     Read the raw value of the internal temperature sensor, returning an integer.
-
-.. function:: hall_sensor()
-
-    Read the raw value of the internal Hall sensor, returning an integer.
 
 .. function:: idf_heap_info(capabilities)
 
@@ -68,16 +74,20 @@ Flash partitions
 This class gives access to the partitions in the device's flash memory and includes
 methods to enable over-the-air (OTA) updates.
 
-.. class:: Partition(id)
+.. class:: Partition(id, block_size=4096, /)
 
     Create an object representing a partition.  *id* can be a string which is the label
     of the partition to retrieve, or one of the constants: ``BOOT`` or ``RUNNING``.
+    *block_size* specifies the byte size of an individual block.
 
-.. classmethod:: Partition.find(type=TYPE_APP, subtype=0xff, label=None)
+.. classmethod:: Partition.find(type=TYPE_APP, subtype=0xff, label=None, block_size=4096)
 
     Find a partition specified by *type*, *subtype* and *label*.  Returns a
     (possibly empty) list of Partition objects. Note: ``subtype=0xff`` matches any subtype
     and ``label=None`` matches any label.
+
+    *block_size* specifies the byte size of an individual block used by the returned
+    objects.
 
 .. method:: Partition.info()
 
@@ -112,7 +122,7 @@ methods to enable over-the-air (OTA) updates.
     and  an ``OSError(-261)`` is raised if called on firmware that doesn't have the
     feature enabled.
     It is OK to call ``mark_app_valid_cancel_rollback`` on every boot and it is not
-    necessary when booting firmare that was loaded using esptool.
+    necessary when booting firmware that was loaded using esptool.
 
 Constants
 ~~~~~~~~~
@@ -264,6 +274,14 @@ For more details see Espressif's `ESP-IDF RMT documentation.
 
 Ultra-Low-Power co-processor
 ----------------------------
+
+This class gives access to the Ultra Low Power (ULP) co-processor on the ESP32,
+ESP32-S2 and ESP32-S3 chips.
+
+.. warning::
+
+    This class does not provide access to the RISCV ULP co-processor available
+    on the ESP32-S2 and ESP32-S3 chips.
 
 .. class:: ULP()
 

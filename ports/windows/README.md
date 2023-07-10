@@ -3,7 +3,7 @@ It is based on Unix port, and expected to remain so.
 The port requires additional testing, debugging, and patches. Please
 consider to contribute.
 
-All gcc-based builds use the gcc compiler from [Mingw-w64](mingw-w64.org),
+All gcc-based builds use the gcc compiler from [Mingw-w64](https://www.mingw-w64.org/),
 which is the advancement of the original mingw project. The latter is
 getting obsolete and is not actively supported by MicroPython.
 
@@ -128,7 +128,7 @@ functions and thus should be ran using the `wineconsole` tool. Depending
 on the Wine build configuration, you may also want to select the curses
 backend which has the look&feel of a standard Unix console:
 
-    wineconsole --backend=curses ./micropython.exe
+    wineconsole --backend=curses ./build-standard/micropython.exe
 
 For more info, see https://www.winehq.org/docs/wineusr-guide/cui-programs .
 
