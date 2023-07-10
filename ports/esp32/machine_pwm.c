@@ -31,14 +31,15 @@
 #include <math.h>
 
 #define MP_PRN_LEVEL 0 // 3 // 1000 show all messages
-#define MP_PRN(...)
+//#define MP_PRN(...)
 
 #include "py/mpprint.h"
 
 #include "py/runtime.h"
 #include "py/mphal.h"
 
-#include "soc/soc_caps.h"
+//#include "soc/soc_caps.h"
+#include "hal/ledc_hal.h"
 #include "driver/ledc.h"
 #include "esp_err.h"
 #include "soc/gpio_sig_map.h"
@@ -85,10 +86,20 @@ STATIC ledc_timer_config_t timers[LEDC_SPEED_MODE_MAX][LEDC_TIMER_MAX];
 // Possible highest resolution in device
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 4, 0)
 
-#if SOC_LEDC_TIMER_BIT_WIDE_NUM < 16
-#define HIGHEST_PWM_RES (LEDC_TIMER_BIT_MAX - 1)
+#if defined(SOC_LEDC_TIMER_BIT_WIDTH)
+#  if SOC_LEDC_TIMER_BIT_WIDTH < 16
+#    define HIGHEST_PWM_RES (LEDC_TIMER_BIT_MAX - 1)
+#  else
+#    define HIGHEST_PWM_RES (LEDC_TIMER_16_BIT) // 20 bit for ESP32, but 16 bit is used
+#  endif
+#elif defined(SOC_LEDC_TIMER_BIT_WIDE_NUM)
+#  if SOC_LEDC_TIMER_BIT_WIDE_NUM < 16
+#    define HIGHEST_PWM_RES (LEDC_TIMER_BIT_MAX - 1)
+#  else
+#    define HIGHEST_PWM_RES (LEDC_TIMER_16_BIT) // 20 bit for ESP32, but 16 bit is used
+#  endif
 #else
-#define HIGHEST_PWM_RES (LEDC_TIMER_16_BIT) // 20 bit for ESP32, but 16 bit is used
+#  define HIGHEST_PWM_RES (LEDC_TIMER_16_BIT) // 20 bit for ESP32, but 16 bit is used
 #endif
 
 #else
@@ -320,16 +331,16 @@ STATIC void set_duty_u16(machine_pwm_obj_t *self, int duty) {
     // Not a bug. It's a feature. The duty is applied at the beginning of the next signal period.
     // Bug: It has been experimentally established that the duty is seted during 2 signal periods, but 1 period is expected.
     // See https://github.com/espressif/esp-idf/issues/7288
-    #if MP_PRN_LEVEL >= MP_PRN_WARNING
-    //ledc_timer_config_t *timer = &timers[self->mode][self->timer];
+    //#if MP_PRN_LEVEL >= MP_PRN_WARNING
     if (duty != get_duty_u16(self)) {
         MP_PRN(MP_PRN_WARNING, "Set_duty_u16(%u), get_duty_u16()=%u, duty=%d, duty_resolution=%d, freq_hz=%d", duty, get_duty_u16(self), duty, timer->duty_resolution, timer->freq_hz);
-        ets_delay_us(2 * 1000000 / timer->freq_hz);
+        // ets_delay_us(2 * 1000000 / timer->freq_hz);
+        esp_rom_delay_us(2 * 1000000 / timer->freq_hz);
         if (duty != get_duty_u16(self)) {
             MP_PRN(MP_PRN_WARNING, "Set_duty_u16(%u), get_duty_u16()=%u, duty=%d, duty_resolution=%d, freq_hz=%d", duty, get_duty_u16(self), duty, timer->duty_resolution, timer->freq_hz);
         }
     }
-    #endif
+    //#endif
     */
 
     self->duty_x = HIGHEST_PWM_RES;
@@ -371,19 +382,21 @@ STATIC void set_freq(machine_pwm_obj_t *self, unsigned int freq) {
     ledc_timer_config_t *timer = &timers[self->mode][self->timer];
     if (timer->freq_hz != freq) {
         // Find the highest bit resolution for the requested frequency
-        unsigned int i = APB_CLK_FREQ; // 80 MHz
+        uint32_t src_clk_freq = APB_CLK_FREQ; // 80 MHz
         #if SOC_LEDC_SUPPORT_REF_TICK
         if (freq < EMPIRIC_FREQ) {
-            i = REF_CLK_FREQ; // 1 MHz
+            src_clk_freq = REF_CLK_FREQ; // 1 MHz
         }
         #endif
+        uint32_t i = src_clk_freq;
 
         #if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(4, 4, 0)
         // original code
         i /= freq;
         #else
         // See https://github.com/espressif/esp-idf/issues/7722
-        int divider = (i + freq / 2) / freq; // rounded
+        unsigned divider = (i + freq / 2) / freq; // rounded
+        MP_PRN(3, "r divider=%lu", divider);
         if (divider == 0) {
             divider = 1;
         }
@@ -392,11 +405,17 @@ STATIC void set_freq(machine_pwm_obj_t *self, unsigned int freq) {
             f = 1.0;
         }
         i = (unsigned int)roundf((float)i / f);
+        #endif
 
         unsigned int res = 0;
         for (; i > 1; i >>= 1) {
             ++res;
         }
+
+        MP_PRN(3, "res=%lu", res);
+        res = ledc_calc_duty_resolution(src_clk_freq, freq);
+        MP_PRN(3, "res=%lu", res);
+
         if (res == 0) {
             res = 1;
         } else if (res > HIGHEST_PWM_RES) {
@@ -414,7 +433,7 @@ STATIC void set_freq(machine_pwm_obj_t *self, unsigned int freq) {
         }
         #endif
 
-        MP_PRN(3, "Ledc_timer_config(), m=%d t=%d dr=%u f=%u", timer->speed_mode, timer->timer_num, timer->duty_resolution, timer->freq_hz);
+        MP_PRN(3, "Ledc_timer_config(), m=%d t=%d d_r=%u f=%u", timer->speed_mode, timer->timer_num, timer->duty_resolution, timer->freq_hz);
         // Configure timer - Set frequency
         check_esp_err(ledc_timer_config(timer));
         // Reset the timer if low speed
@@ -567,12 +586,14 @@ STATIC void mp_machine_pwm_print(const mp_print_t *print, mp_obj_t self_in, mp_p
         }
         #endif
         mp_printf(print, ")");
+        //#if MP_PRN_LEVEL > 0
         int resolution = timers[self->mode][self->timer].duty_resolution;
         mp_printf(print, "  # resolution=%d", resolution);
 
-        mp_printf(print, ", (duty=%.2f%%, resolution=%.3f%%)", 100.0 * get_duty_raw(self) / (1 << resolution), 100.0 * 1 / (1 << resolution)); // percents
+        mp_printf(print, ", (duty=%.2f%%, resolution=%.6f%%)", 100.0 * get_duty_raw(self) / (1 << resolution), 100.0 * 1 / (1 << resolution)); // percents
 
         mp_printf(print, ", mode=%d, channel=%d, timer=%d", self->mode, self->channel, self->timer);
+        //#endif
     } else {
         mp_printf(print, ")");
     }

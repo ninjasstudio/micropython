@@ -100,9 +100,9 @@ int mp_vprintf(const mp_print_t *print, const char *fmt, va_list args);
 #define MP_PRN(level, ...) \
     do { \
         if ((0 < level) && (level <= MP_PRN_LEVEL)) { \
-            mp_printf(MP_PYTHON_PRINTER, " %d || ", level); \
+            mp_printf(MP_PYTHON_PRINTER, " MP_PRN_LEVEL=%d : ", level); \
             mp_printf(MP_PYTHON_PRINTER, __VA_ARGS__); \
-            mp_printf(MP_PYTHON_PRINTER, " || %d %s\n", __LINE__, __FILE__); \
+            mp_printf(MP_PYTHON_PRINTER, " : LINE=%d FILE=%s\n", __LINE__, __FILE__); \
         } \
     } while (0);
 #else
