@@ -141,7 +141,7 @@ These are working configurations for LAN interfaces of popular boards::
     # Olimex ESP32-GATEWAY: power controlled by Pin(5)
     # Olimex ESP32 PoE and ESP32-PoE ISO: power controlled by Pin(12)
 
-    lan = network.LAN(mdc=machine.Pin(23), mdio=machine.Pin(18), power=machine.Pin(5), 
+    lan = network.LAN(mdc=machine.Pin(23), mdio=machine.Pin(18), power=machine.Pin(5),
                       phy_type=network.PHY_LAN8720, phy_addr=0,
                       ref_clk=machine.Pin(17), ref_clk_mode=machine.Pin.OUT)
 
@@ -309,19 +309,24 @@ Use the :ref:`machine.PWM <machine.PWM>` class::
 
     pwm2 = PWM(Pin(2), freq=20000, duty=512)  # create and configure in one go
     print(pwm2)                               # view PWM settings
+    pwm2.deinit()                             # turn off PWM on the pin
+
+    pwm0 = PWM(Pin(0), duty_u16=16384)            # The output is at a high level 25% of the time.
+    pwm2 = PWM(Pin(2), duty_u16=16384, invert=1)  # The output is at a low level 25% of the time.
 
 ESP chips have different hardware peripherals:
 
-=====================================================  ========  ========  ========
-Hardware specification                                    ESP32  ESP32-S2  ESP32-C3
------------------------------------------------------  --------  --------  --------
-Number of groups (speed modes)                                2         1         1
-Number of timers per group                                    4         4         4
-Number of channels per group                                  8         8         6
------------------------------------------------------  --------  --------  --------
-Different PWM frequencies (groups * timers)                   8         4         4
-Total PWM channels (Pins, duties) (groups * channels)        16         8         6
-=====================================================  ========  ========  ========
+=======================================================  ========  ========  ========
+Hardware specification                                      ESP32  ESP32-S2  ESP32-C3
+                                                                   ESP32-S3  ESP32-H2
+-------------------------------------------------------  --------  --------  --------
+Number of groups (speed modes)                                  2         1         1
+Number of timers per group                                      4         4         4
+Number of channels per group                                    8         8         6
+-------------------------------------------------------  --------  --------  --------
+Different PWM frequencies = (groups * timers)                   8         4         4
+Total PWM channels (Pins, duties) = (groups * channels)        16         8         6
+=======================================================  ========  ========  ========
 
 A maximum number of PWM channels (Pins) are available on the ESP32 - 16 channels,
 but only 8 different PWM frequencies are available, the remaining 8 channels must
