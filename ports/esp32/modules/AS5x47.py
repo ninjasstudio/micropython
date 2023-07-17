@@ -1,7 +1,6 @@
-from uctypes import BF_POS, BF_LEN, BFUINT16, BIG_ENDIAN, struct, bytes_at, addressof, sizeof
+from uctypes import BF_POS, BF_LEN, BFUINT16, BIG_ENDIAN, struct, addressof #, bytes_at, sizeof
 from utime import sleep_us
-
-from angles import to180
+from machine import SPI, Pin
 
 # ----------------------------------------------------------------------
 __MSB_mask = 0x4000  # for lower 15 bits
@@ -13,9 +12,9 @@ def is_even(data, msb_mask):
     count = 0
     while msb_mask:
         if data & msb_mask:
-            count += 1
+            count ^= 1
         msb_mask >>= 1
-    return count & 1
+    return count
 
 
 # ----------------------------------------------------------------------
@@ -125,7 +124,7 @@ ZPOSM_struct = {
 # ZPOSL (0x0017)
 # Name | Bit Position & Bit Length | Read/Write/Program | Description
 ZPOSL_struct = {
-    "ZPOSL": 5 << BF_POS | 6 << BF_LEN | BFUINT16,  #       5:0 R/W/P 6 least significant bits of the zero position
+    "ZPOSL": 0 << BF_POS | 6 << BF_LEN | BFUINT16,  #       5:0 R/W/P 6 least significant bits of the zero position
     "COMP_L_ERROR_EN": 6 << BF_POS | 1 << BF_LEN | BFUINT16,  # R/W/P This bit enables the contribution of MAGH (magnetic field strength too high) to the error flag
     "COMP_H_ERROR_EN": 7 << BF_POS | 1 << BF_LEN | BFUINT16,  # R/W/P This bit enables the contribution of MAGL (magnetic field strength too low) to the error flag
     }
@@ -167,61 +166,44 @@ class AS5x47():
     # The ESP32 polarity is the idle state of SCK.
     # The ESP32 phase=0 means sample on the first edge of SCK, phase=1 means the second.
     #
-    # spi = SPI(HSPI_ID, sck=Pin(HSPI_sck), mosi=Pin(HSPI_mosi), miso=Pin(HSPI_miso), baudrate=10000000, polarity=0, phase=1, bits=16, firstbit=SPI.MSB)
+    # spi = SPI(HSPI_ID, sck=Pin(HSPI_sck), mosi=Pin(HSPI_mosi), miso=Pin(HSPI_miso), baudrate=10_000_000, polarity=0, phase=1, bits=16, firstbit=SPI.MSB)
     # cs = Pin(esp32_.HSPI_cs1, Pin.OUT, value=1)
     def __init__(self, spi, spi_baudrate, cs, direction=1):
+        assert isinstance(spi, SPI)
+        assert isinstance(cs, Pin)
+        
         self.spi = spi
-        self.tclk_2_us = 1000000 // (spi_baudrate * 2) + 1  # tH = tclk / 2 us # Time between last falling edge of CLK and rising edge of cs
+        self.tclk_2_us = 1_000_000 // (spi_baudrate * 2) + 1  # tH = tclk / 2 us # Time between last falling edge of CLK and rising edge of cs
         self.cs = cs  # active is low
         self.direction = direction  # set -1 to reverse angles
 
-        self._write_command = bytearray(b'\xc0\x00')
+        self._write_command = bytearray(b'\xC0\x00')
         self._received_data = bytearray(2)
+        self._received_data_prev = bytearray(b'\x00\x00')
+        self.received_frame = struct(addressof(self._received_data), Read_Data_Frame_struct, BIG_ENDIAN)
         self._command_buff = bytearray(2)
+        self.command_frame = struct(addressof(self._command_buff), Command_Frame_struct, BIG_ENDIAN)
         self._data_buff = bytearray(2)
+        self.data_frame = struct(addressof(self._data_buff), Write_Data_Frame_struct, BIG_ENDIAN)
 
         self._angle_major = 0
         self._angle14 = 0
         self._angle14_prev = 0
-        
-        for _ in range(10):
-            self.readAngleCom()
-            sleep_us(10_000)
-        i = 0
-        n = 0
-        while True:
-            i += 1
-            n += 1
-            x1 = self.readAngleCom()  # before self.readAngleComInfinity()
-            if self._angle14 >= 0:  # 8192:
-                if self._angle14_prev < 0:
-                     n = 0
-            else:
-                if self._angle14_prev >= 0:
-                     n = 0
-            self._angle14_prev = self._angle14
-            x2 = self.readAngleComInfinity()  # after self.readAngleCom()
-            # print('AS5x47 _angle14:{:10}, angle_major:{:10}, res:{:10}:{:10}'.format(self._angle14, self._angle_major, x1, x2))
-            if (n > 5) or (i > 50):
-                break
-            sleep_us(10_000)
 
     # ------------------
     @micropython.native
     def _readAngleInfinity(self, readAngleFunc):
-        angle_new = readAngleFunc()  # 8192 == 2 ** 14 / 2
-        #print(' _angle14_prev:{}, _angle14:{}'.format(self._angle14_prev, self._angle14))
-        if self._angle14_prev - self._angle14 >= 8192:
-            self._angle_major += 360
-            #print('+360 _angle14_prev:{}, _angle14:{}, angle_major:{}, angle_new:{}, res:{}'.format(self._angle14_prev, self._angle14, self._angle_major, angle_new, self._angle_major + angle_new))
-        elif self._angle14 - self._angle14_prev >= 8192:
-            self._angle_major -= 360
-            #print('-360 _angle14_prev:{}, _angle14:{}, angle_major:{}, angle_new:{}, res:{}'.format(self._angle14_prev, self._angle14, self._angle_major, angle_new, self._angle_major + angle_new))
+        angle_now = readAngleFunc()  # 8192 == 2 ** 14 / 2
+        delta = self._angle14_prev - self._angle14
+        if delta >= 8192:
+            self._angle_major += self.direction * 360
+        elif delta <= -8192:
+            self._angle_major -= self.direction * 360
         self._angle14_prev = self._angle14
-        return self._angle_major + angle_new
+        return self._angle_major + angle_now
 
     def __repr__(self):
-        return 'AS5x47(spi={}, cs={})'.format(self.spi, self.cs)
+        return 'AS5x47(spi={}, cs={}, direction={})'.format(self.spi, self.cs, self.direction)
 
     @micropython.native
     def writeData(self, command, value):
@@ -237,20 +219,41 @@ class AS5x47():
         sleep_us(self.tclk_2_us)
         self.cs.on()
 
+    # after every spi.write_readinto()
+    @micropython.native
+    def checkReceivedFrame(self):
+#         if self.received_frame.EF: 
+#             #raise RuntimeError('received_frame.EF on 0x%X' % self.command_frame.ADDR)
+#             print('received_frame.EF on 0x%X' % self.command_frame.ADDR)
+#             self._received_data[:] = self._received_data_prev[:]
+#         elif self.received_frame.PARD != is_even(self.received_frame.DATA, __MSB_mask):
+#             #raise ValueError('received_frame.PARD != is_even on 0x%X' % self.command_frame.ADDR)
+#             print('received_frame.PARD != is_even on 0x%X' % self.command_frame.ADDR)
+#             self._received_data[:] = self._received_data_prev[:]
+#         else:
+#             self._received_data_prev[:] = self._received_data[:]
+        if (self._received_data[0] == 0xff and self._received_data[1] == 0xff) \
+        or (self._received_data[0] == 0x00 and self._received_data[1] == 0x00):
+            self._received_data[:] = self._received_data_prev[:]
+        else:
+            self._received_data_prev[:] = self._received_data[:]
+
     @micropython.native
     def readData(self, command):
         # Send Read Command
-        self._write_command = bytes_at(addressof(command), sizeof(command))
+        self._write_command = command  # bytes_at(addressof(command), sizeof(command))
         self.cs.off()
         self.spi.write(self._write_command)
         sleep_us(self.tclk_2_us)
         self.cs.on()
 
-        # Send Nop Command while receiving data
+        # Send Read Command while receiving data
         self.cs.off()
         self.spi.write_readinto(self._write_command, self._received_data)
         sleep_us(self.tclk_2_us)
         self.cs.on()
+        
+        self.checkReceivedFrame()
 
     @micropython.native
     def readDataAgain(self):
@@ -259,28 +262,19 @@ class AS5x47():
         sleep_us(self.tclk_2_us)
         self.cs.on()
 
+        self.checkReceivedFrame()
+
     @micropython.native
-    def receivedFrameStruct(self, receivedFrame):
-        return struct(addressof(receivedFrame), Read_Data_Frame_struct, BIG_ENDIAN)
+    def receivedFrameStruct(self, received_frame):
+        return struct(addressof(received_frame), Read_Data_Frame_struct, BIG_ENDIAN)
 
     @micropython.native
     def readRegister(self, registerAddress):
-        command = struct(addressof(self._command_buff), Command_Frame_struct, BIG_ENDIAN)
-        command.ADDR = registerAddress
-        command.R_W = READ
-        command.PARC = is_even(int.from_bytes(self._command_buff, 'big'), __MSB_mask)
+        self.command_frame.ADDR = registerAddress
+        self.command_frame.R_W = READ
+        self.command_frame.PARC = is_even(int.from_bytes(self._command_buff, 'big'), __MSB_mask)
 
-        self.readData(command)
-        receivedFrame = self.receivedFrameStruct(self._received_data)
-        if receivedFrame.EF:
-            self.readData(command)
-            receivedFrame = self.receivedFrameStruct(self._received_data)
-            if receivedFrame.EF:
-                #raise ValueError
-                print('receivedFrame.EF')
-        if receivedFrame.PARD != is_even(receivedFrame.DATA, __MSB_mask):
-            #raise ValueError
-            print('receivedFrame.PARD != is_even')
+        self.readData(self.command_frame)
 
     @micropython.native
     def readRegisterAgain(self):
@@ -288,43 +282,44 @@ class AS5x47():
 
     @micropython.native
     def writeRegister(self, registerAddress, registerValue):
-        command = struct(addressof(self._command_buff), Command_Frame_struct, BIG_ENDIAN)
-        command.ADDR = registerAddress
-        command.R_W = WRITE
-        command.PARC = is_even(int.from_bytes(self._command_buff, 'big'), __MSB_mask)
+        self.command_frame.ADDR = registerAddress
+        self.command_frame.R_W = WRITE
+        self.command_frame.PARC = is_even(int.from_bytes(self._command_buff, 'big'), __MSB_mask)
 
-        data = struct(addressof(self._data_buff), Write_Data_Frame_struct, BIG_ENDIAN)
-        data.DATA = registerValue
-        data.LOW = 0
-        data.PARD = is_even(int.from_bytes(self._data_buff, 'big'), __MSB_mask)
+        self.data_frame.DATA = registerValue
+        self.data_frame.LOW = 0
+        self.data_frame.PARD = is_even(int.from_bytes(self._data_buff, 'big'), __MSB_mask)
 
-        self.writeData(command, data)
+        self.writeData(self.command_frame, self.data_frame)
 
     # ------------------
-    def readAngle(self):
-        self.readRegister(ANGLEUNC)
-        self._angle14 = struct(addressof(self._received_data), ANGLEUNC_struct, BIG_ENDIAN).CORDICANG - 0x2000
-        return self.direction * self._angle14 * __to_angle
-
-    def readAngleAgain(self):
-        self.readRegisterAgain()
-        self._angle14 = struct(addressof(self._received_data), ANGLEUNC_struct, BIG_ENDIAN).CORDICANG - 0x2000
-        return self.direction * self._angle14 * __to_angle
-
-    def readAngleInfinity(self):
-        return self._readAngleInfinity(self.readAngleAgain)
-
+#     @micropython.native
+#     def readAngle(self):
+#         self.readRegister(ANGLEUNC)
+#         self._angle14 = struct(addressof(self._received_data), ANGLEUNC_struct, BIG_ENDIAN).CORDICANG
+#         return self.direction * self._angle14 * __to_angle
+# 
+#     @micropython.native
+#     def readAngleAgain(self):
+#         self.readRegisterAgain()
+#         self._angle14 = struct(addressof(self._received_data), ANGLEUNC_struct, BIG_ENDIAN).CORDICANG
+#         return self.direction * self._angle14 * __to_angle
+# 
+#     @micropython.native
+#     def readAngleInfinity(self):
+#         return self._readAngleInfinity(self.readAngleAgain)
+ 
     # ------------------
     @micropython.native
     def readAngleCom(self):
         self.readRegister(ANGLECOM)
-        self._angle14 = struct(addressof(self._received_data), ANGLECOM_struct, BIG_ENDIAN).DAECANG - 0x2000
+        self._angle14 = struct(addressof(self._received_data), ANGLECOM_struct, BIG_ENDIAN).DAECANG
         return self.direction * self._angle14 * __to_angle
 
     @micropython.native
     def readAngleComAgain(self):
         self.readRegisterAgain()
-        self._angle14 = struct(addressof(self._received_data), ANGLECOM_struct, BIG_ENDIAN).DAECANG - 0x2000
+        self._angle14 = struct(addressof(self._received_data), ANGLECOM_struct, BIG_ENDIAN).DAECANG
         return self.direction * self._angle14 * __to_angle
 
     @micropython.native
@@ -332,12 +327,15 @@ class AS5x47():
         return self._readAngleInfinity(self.readAngleComAgain)
 
     # ------------------
-    def writeSettings1(self, value):
-        self.writeRegister(SETTINGS1, value)
-
-    def writeSettings2(self, value):
-        self.writeRegister(SETTINGS2, value)
-
-    def writeZeroPosition(self, zposm, zposl):
-        self.writeRegister(ZPOSM, zposm)
-        self.writeRegister(ZPOSL, zposl)
+#     @micropython.native
+#     def writeSettings1(self, value):
+#         self.writeRegister(SETTINGS1, value)
+# 
+#     @micropython.native
+#     def writeSettings2(self, value):
+#         self.writeRegister(SETTINGS2, value)
+# 
+#     @micropython.native
+#     def writeZeroPosition(self, zposm, zposl):
+#         self.writeRegister(ZPOSM, zposm)
+#         self.writeRegister(ZPOSL, zposl)

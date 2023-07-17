@@ -448,4 +448,4 @@ const mp_obj_module_t mahony_user_cmodule = {
     .globals = (mp_obj_dict_t*)&mahony_module_globals,
 };
 
-MP_REGISTER_MODULE(MP_QSTR_mahony, mahony_user_cmodule, 1); // MODULE_MAHONY_ENABLED
+MP_REGISTER_MODULE(MP_QSTR_mahony, mahony_user_cmodule);

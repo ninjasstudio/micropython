@@ -3,7 +3,7 @@
 from utime import ticks_us, ticks_diff
 
 from avg_filter import *
-from mahony import MahonyAHRSupdateIMU, Mahony_pitch, Mahony_roll
+import mahony
 
 
 class Sensors():
@@ -31,7 +31,7 @@ class Sensors():
         _t = ticks_us()  # us !!!
         a = self.imu.acceleration
         g = self.imu.gyro
-        MahonyAHRSupdateIMU(
+        mahony.MahonyAHRSupdateIMU(
             g[1],
             -g[0],
             g[2],  # датчик горизонтально # сова3 провода идут влево 
@@ -42,8 +42,8 @@ class Sensors():
             )
         self._t_us_IMU = _t
 
-        self.pitch = round(-Mahony_pitch() - self.offset_pitch, 2)  # discrete
-        # self.roll = round(Mahony_roll() - self.offset_roll, 2)  # discrete
+        self.pitch = round(-mahony.Mahony_pitch() - self.offset_pitch, 2)  # discrete
+        # self.roll = round(mahony.Mahony_roll() - self.offset_roll, 2)  # discrete
 
         self.yaw = self.read_yaw()  # discrete
 

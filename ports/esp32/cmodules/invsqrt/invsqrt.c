@@ -11,7 +11,7 @@
 
 // function for madgwick.c and for mahony.c
 
-#define USE_VERSION 3
+// #define USE_VERSION 3
 
 float invSqrt(float x) {
     #if USE_VERSION == 1
@@ -140,4 +140,4 @@ const mp_obj_module_t invsqrt_user_cmodule = {
     .globals = (mp_obj_dict_t*)&invsqrt_module_globals,
 };
 
-MP_REGISTER_MODULE(MP_QSTR_invsqrt, invsqrt_user_cmodule, MODULE_INVSQRT_ENABLED);
+MP_REGISTER_MODULE(MP_QSTR_invsqrt, invsqrt_user_cmodule);
