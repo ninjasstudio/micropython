@@ -83,9 +83,6 @@ STATIC ledc_timer_config_t timers[LEDC_SPEED_MODE_MAX][LEDC_TIMER_MAX];
 // Maximum duty value on highest user interface resolution
 #define UI_MAX_DUTY ((1 << UI_RES_16_BIT) - 1)
 
-// Possible highest resolution in device
-#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 4, 0)
-
 #if defined(SOC_LEDC_TIMER_BIT_WIDTH)
 #  if SOC_LEDC_TIMER_BIT_WIDTH < 16
 #    define HIGHEST_PWM_RES (LEDC_TIMER_BIT_MAX - 1)
@@ -99,17 +96,7 @@ STATIC ledc_timer_config_t timers[LEDC_SPEED_MODE_MAX][LEDC_TIMER_MAX];
 #    define HIGHEST_PWM_RES (LEDC_TIMER_16_BIT) // 20 bit for ESP32, but 16 bit is used
 #  endif
 #else
-#  define HIGHEST_PWM_RES (LEDC_TIMER_16_BIT) // 20 bit for ESP32, but 16 bit is used
-#endif
-
-#else
-
-#if CONFIG_IDF_TARGET_ESP32
-#define HIGHEST_PWM_RES (LEDC_TIMER_16_BIT) // 20 bit for ESP32, but 16 bit is used
-#else
-#define HIGHEST_PWM_RES (LEDC_TIMER_BIT_MAX - 1) // 14 bit is used
-#endif
-
+#  error HIGHEST_PWM_RES
 #endif
 
 #if SOC_LEDC_SUPPORT_REF_TICK
