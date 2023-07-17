@@ -100,9 +100,9 @@ int mp_vprintf(const mp_print_t *print, const char *fmt, va_list args);
 #define MP_PRN(level, ...) \
     do { \
         if ((0 < level) && (level <= MP_PRN_LEVEL)) { \
-            mp_printf(MP_PYTHON_PRINTER, " %d || ", level); \
+            mp_printf(MP_PYTHON_PRINTER, " MP_PRN_LEVEL=%d : ", level); \
             mp_printf(MP_PYTHON_PRINTER, __VA_ARGS__); \
-            mp_printf(MP_PYTHON_PRINTER, " || %d %s\n", __LINE__, __FILE__); \
+            mp_printf(MP_PYTHON_PRINTER, " : LINE=%d FILE=%s\n", __LINE__, __FILE__); \
         } \
     } while (0);
 #else
@@ -129,13 +129,3 @@ void foo() {
 // Then add MP_PRN(3, ...) and when gets too much messages then change some messages to the next level MP_PRN(4, ...), or MP_PRN(2, ...) etc.
 // Then you may change MP_PRN_LEVEL to 2(reduce printing), and finally to 0(supress printing).
 */
-
-#if 0
-#if MICROPY_DEBUG_VERBOSE // print debugging info
-#define DEBUG_PRINT (1)
-#define DEBUG_printf(...) MP_PRN(MP_PRN_DEBUG, __VA_ARGS__)
-#else // don't print debugging info
-#define DEBUG_PRINT (0)
-#define DEBUG_printf(...)
-#endif
-#endif
