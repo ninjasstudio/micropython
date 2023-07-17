@@ -562,7 +562,7 @@ STATIC void mp_machine_pwm_print(const mp_print_t *print, mp_obj_t self_in, mp_p
 
         if (self->duty_x == PWM_RES_10_BIT) {
             mp_printf(print, ", duty=%d", get_duty_u10(self));
-        } else if (self->duty_x == -UI_RES_16_BIT) {
+        } else if (self->duty_x == -HIGHEST_PWM_RES) {
             mp_printf(print, ", duty_ns=%d", get_duty_ns(self));
         } else {
             mp_printf(print, ", duty_u16=%d", get_duty_u16(self));
