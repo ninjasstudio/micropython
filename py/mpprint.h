@@ -129,13 +129,3 @@ void foo() {
 // Then add MP_PRN(3, ...) and when gets too much messages then change some messages to the next level MP_PRN(4, ...), or MP_PRN(2, ...) etc.
 // Then you may change MP_PRN_LEVEL to 2(reduce printing), and finally to 0(supress printing).
 */
-
-#if 0
-#if MICROPY_DEBUG_VERBOSE // print debugging info
-#define DEBUG_PRINT (1)
-#define DEBUG_printf(...) MP_PRN(MP_PRN_DEBUG, __VA_ARGS__)
-#else // don't print debugging info
-#define DEBUG_PRINT (0)
-#define DEBUG_printf(...)
-#endif
-#endif
