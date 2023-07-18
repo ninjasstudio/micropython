@@ -79,8 +79,6 @@ int mp_printf(const mp_print_t *print, const char *fmt, ...);
 int mp_vprintf(const mp_print_t *print, const char *fmt, va_list args);
 #endif
 
-#endif // MICROPY_INCLUDED_PY_MPPRINT_H
-
 #if defined(MP_PRN_LEVEL) && (MP_PRN_LEVEL > 0)
 // Debug messages during code developing with MP_PRN(level, ...) & MP_PRN_LEVEL.
 // An approximate hierarchy of debug levels MP_PRN_LEVEL is:
@@ -129,3 +127,5 @@ void foo() {
 // Then add MP_PRN(3, ...) and when gets too much messages then change some messages to the next level MP_PRN(4, ...), or MP_PRN(2, ...) etc.
 // Then you may change MP_PRN_LEVEL to 2(reduce printing), and finally to 0(supress printing).
 */
+
+#endif // MICROPY_INCLUDED_PY_MPPRINT_H
