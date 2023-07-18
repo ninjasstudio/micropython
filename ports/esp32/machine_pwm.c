@@ -61,10 +61,6 @@ STATIC chan_t chans[LEDC_SPEED_MODE_MAX][LEDC_CHANNEL_MAX];
 // List of timer configs
 STATIC ledc_timer_config_t timers[LEDC_SPEED_MODE_MAX][LEDC_TIMER_MAX];
 
-// Params for PWM operation
-// 5khz is default frequency
-#define PWM_FREQ (5000)
-
 // 10-bit resolution (compatible with esp8266 PWM)
 #define PWM_RES_10_BIT (LEDC_TIMER_10_BIT)
 
@@ -77,7 +73,7 @@ STATIC ledc_timer_config_t timers[LEDC_SPEED_MODE_MAX][LEDC_TIMER_MAX];
 // Duty resolution of user interface in `duty_u16()` and `duty_u16` parameter in constructor/initializer
 #define UI_RES_16_BIT (16)
 // Maximum duty value on highest user interface resolution
-#define UI_MAX_DUTY ((1 << UI_RES_16_BIT) - 1)
+#define UI_MAX_DUTY (1 << UI_RES_16_BIT)
 
 #if defined(SOC_LEDC_TIMER_BIT_WIDTH)
 #  if SOC_LEDC_TIMER_BIT_WIDTH < 16
@@ -220,7 +216,6 @@ void machine_pwm_deinit_all(void) {
 STATIC void configure_channel(machine_pwm_obj_t *self) {
     ledc_channel_config_t cfg = {
         .channel = self->channel,
-        //.duty = (1 << timers[self->mode][self->timer].duty_resolution) / 2, // 50%
         .duty = self->channel_duty,
         .gpio_num = self->pin,
         .intr_type = LEDC_INTR_DISABLE,
@@ -228,6 +223,10 @@ STATIC void configure_channel(machine_pwm_obj_t *self) {
         .timer_sel = self->timer,
         .flags.output_invert = self->output_invert,
     };
+    if (self->channel_duty == UI_MAX_DUTY) {
+        cfg.duty = 0;
+        cfg.flags.output_invert = self->output_invert ^ 1;
+    }
     check_esp_err(ledc_channel_config(&cfg));
 }
 
@@ -292,12 +291,22 @@ STATIC void set_duty_u16(machine_pwm_obj_t *self, int duty) {
     } else if (channel_duty > max_duty) {
         channel_duty = max_duty;
     }
-    check_esp_err(ledc_set_duty(self->mode, self->channel, channel_duty));
-    check_esp_err(ledc_update_duty(self->mode, self->channel));
 
     self->duty_x = HIGHEST_PWM_RES;
     self->duty = duty;
-    self->channel_duty = channel_duty;
+    
+    if (channel_duty == UI_MAX_DUTY) {
+        self->channel_duty = channel_duty;
+        configure_channel(self);
+    } else {
+        if (self->channel_duty == UI_MAX_DUTY) {
+            self->channel_duty = channel_duty;
+            configure_channel(self);
+        }
+        self->channel_duty =  channel_duty;
+        check_esp_err(ledc_set_duty(self->mode, self->channel, channel_duty));
+        check_esp_err(ledc_update_duty(self->mode, self->channel));
+    }
 }
 
 STATIC void set_duty_u10(machine_pwm_obj_t *self, int duty) {
@@ -583,9 +592,6 @@ STATIC void mp_machine_pwm_init_helper(machine_pwm_obj_t *self,
     } else if (duty >= 0) {
         self->duty_x = PWM_RES_10_BIT;
         self->duty = duty;
-    } else if (self->duty_x == 0) {
-        self->duty_x = PWM_RES_10_BIT;
-        self->duty = (1 << PWM_RES_10_BIT) / 2; // 50%
     }
 
     self->output_invert = args[ARG_invert].u_int == 0 ? 0 : 1;
@@ -617,9 +623,10 @@ STATIC void mp_machine_pwm_init_helper(machine_pwm_obj_t *self,
         if (chans[mode][channel].timer >= 0) {
             freq = timers[mode][chans[mode][channel].timer].freq_hz;
         }
-        if (freq <= 0) {
-            freq = PWM_FREQ;
-        }
+    }
+
+    if ((freq < 0) || (self->duty_x == 0)) {
+        return;
     }
 
     select_a_timer(self, freq);
