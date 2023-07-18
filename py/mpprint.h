@@ -79,8 +79,6 @@ int mp_printf(const mp_print_t *print, const char *fmt, ...);
 int mp_vprintf(const mp_print_t *print, const char *fmt, va_list args);
 #endif
 
-#endif // MICROPY_INCLUDED_PY_MPPRINT_H
-
 #if defined(MP_PRN_LEVEL) && (MP_PRN_LEVEL > 0)
 // Debug messages during code developing with MP_PRN(level, ...) & MP_PRN_LEVEL.
 // An approximate hierarchy of debug levels MP_PRN_LEVEL is:
@@ -102,7 +100,7 @@ int mp_vprintf(const mp_print_t *print, const char *fmt, va_list args);
         if ((0 < level) && (level <= MP_PRN_LEVEL)) { \
             mp_printf(MP_PYTHON_PRINTER, " MP_PRN_LEVEL=%d : ", level); \
             mp_printf(MP_PYTHON_PRINTER, __VA_ARGS__); \
-            mp_printf(MP_PYTHON_PRINTER, " : LINE=%d FILE=%s\n", __LINE__, __FILE__); \
+            mp_printf(MP_PYTHON_PRINTER, " : FUNC=%s LINE=%d FILE=%s\n", __FUNCTION__, __LINE__, __FILE__); \
         } \
     } while (0);
 #else
@@ -113,19 +111,26 @@ int mp_vprintf(const mp_print_t *print, const char *fmt, va_list args);
 // Set MP_PRN_LEVEL in developed *.C or *.CPP file, for example
 #define MP_PRN_LEVEL 1000 // show all messages
 // Add MP_PRN() macro in code, like
-void foo() {
-    MP_PRN(6, "Enter foo()")
+void foo(int arg) {
+    MP_PRN(MP_PRN_TRACE, "Enter foo()")
+    if (arg < 0) {
+        MP_PRN(MP_PRN_WARNING, "arg=%d less zero", arg)
+        ...
+    }
     ...
     int value;
     ...
     // calculate value
     ...
-    MP_PRN(4, "See a value=%d", value)
+    MP_PRN(MP_PRN_INFO, "See a value=%d", value)
     ...
-    MP_PRN(6, "Exit foo()")
+    MP_PRN(MP_PRN_TRACE, "Exit foo()")
 }
+
 // It is not a dogma. You may start debugging from level 3.
 #define MP_PRN_LEVEL 3
 // Then add MP_PRN(3, ...) and when gets too much messages then change some messages to the next level MP_PRN(4, ...), or MP_PRN(2, ...) etc.
 // Then you may change MP_PRN_LEVEL to 2(reduce printing), and finally to 0(supress printing).
 */
+
+#endif // MICROPY_INCLUDED_PY_MPPRINT_H
