@@ -40,8 +40,8 @@
 #include "esp_err.h"
 #include "soc/gpio_sig_map.h"
 
-//#define PWM_DBG(...)
- #define PWM_DBG(...) mp_printf(&mp_plat_print, __VA_ARGS__); mp_printf(&mp_plat_print, "\n");
+#define PWM_DBG(...)
+//#define PWM_DBG(...) mp_printf(&mp_plat_print, __VA_ARGS__); mp_printf(&mp_plat_print, "\n");
 
 // Total number of channels
 #define PWM_CHANNEL_MAX (LEDC_SPEED_MODE_MAX * LEDC_CHANNEL_MAX)
@@ -226,7 +226,9 @@ STATIC void configure_channel(machine_pwm_obj_t *self) {
         .timer_sel = self->timer,
         .flags.output_invert = self->output_invert,
     };
-    if (self->channel_duty == UI_MAX_DUTY) {
+    ledc_timer_config_t *timer = &timers[self->mode][self->timer];
+    int max_duty = 1 << timer->duty_resolution;
+    if (self->channel_duty == max_duty) {
         cfg.duty = 0;
         cfg.flags.output_invert = self->output_invert ^ 1;
         PWM_DBG("cfg.duty=%d, cfg.flags.output_invert=%d", cfg.duty, cfg.flags.output_invert);
@@ -261,7 +263,9 @@ STATIC int duty_to_ns(machine_pwm_obj_t *self, int duty) {
 #define get_duty_raw(self) ledc_get_duty(self->mode, self->channel)
 
 STATIC uint32_t get_duty_u16(machine_pwm_obj_t *self) {
-    if (self->channel_duty == UI_MAX_DUTY) {
+    ledc_timer_config_t *timer = &timers[self->mode][self->timer];
+    int max_duty = 1 << timer->duty_resolution;
+    if (self->channel_duty == max_duty) {
         return UI_MAX_DUTY;
     } else {
         int resolution = timers[self->mode][self->timer].duty_resolution;
@@ -302,12 +306,13 @@ STATIC void set_duty_u16(machine_pwm_obj_t *self, int duty) {
 
     self->duty_x = HIGHEST_PWM_RES;
     self->duty = duty;
-    
-    if (channel_duty == UI_MAX_DUTY) {
+
+    PWM_DBG("set_duty_u16() self->channel_duty=%d, channel_duty=%d, duty=%d\n", self->channel_duty, channel_duty, duty);
+    if (channel_duty == max_duty) {
         self->channel_duty = channel_duty;
         configure_channel(self);
     } else {
-        if (self->channel_duty == UI_MAX_DUTY) {
+        if (self->channel_duty == max_duty) {
             self->channel_duty = channel_duty;
             configure_channel(self);
         }
