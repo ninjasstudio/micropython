@@ -73,6 +73,14 @@ Methods
    With a single *value* argument the duty cycle is set to that value, measured
    as the ratio ``value / 65535``.
 
+   Use functions like these to convert percentages to u16 and back::
+
+      def percents_to_u16(percents:int)->int:
+          return (percents * 2**16 + 50) // 100
+
+      def u16_to_percents(u16:int)->int:
+          return (u16 * 100 + 2**15) // 2**16
+
 .. method:: PWM.duty_ns([value])
 
    Get or set the current pulse width of the PWM output, as a value in nanoseconds.
