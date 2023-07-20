@@ -11,7 +11,7 @@ Example usage::
     from machine import PWM
 
     pwm = PWM(pin, freq=50, duty_u16=8192)  # create a PWM object on a pin
-                                            # and set freq and duty
+                                            # and set freq 50 Hz and duty 12.5%
     pwm.duty_u16(32768)     # set duty to 50%
 
     # reinitialise with a period of 200us, duty of 5us
@@ -86,7 +86,7 @@ Specific PWM class implementations
 
 The following concrete class(es) implement enhancements to the PWM class.
 
-   | :ref:`pyb.Timer for PyBoard <pyb.Timer>`  
+   | :ref:`pyb.Timer for PyBoard <pyb.Timer>`
 
 Limitations of PWM
 ------------------
@@ -103,7 +103,7 @@ Limitations of PWM
   Some ports like the RP2040 one use a fractional divider, which allow a finer
   granularity of the frequency at higher frequencies by switching the PWM
   pulse duration between two adjacent values, such that the resulting average
-  frequency is more close to the intended one, at the cost of spectral purity. 
+  frequency is more close to the intended one, at the cost of spectral purity.
 
 * The duty cycle has the same discrete nature and its absolute accuracy is not
   achievable.  On most hardware platforms the duty will be applied at the next
