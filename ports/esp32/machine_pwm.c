@@ -43,9 +43,6 @@
 #define PWM_DBG(...)
 //#define PWM_DBG(...) mp_printf(&mp_plat_print, __VA_ARGS__); mp_printf(&mp_plat_print, "\n");
 
-// Total number of channels
-#define PWM_CHANNEL_MAX (LEDC_SPEED_MODE_MAX * LEDC_CHANNEL_MAX)
-
 typedef struct _chan_t {
     // Which channel has which GPIO pin assigned?
     // (-1 if not assigned)
@@ -58,9 +55,6 @@ typedef struct _chan_t {
 // List of PWM channels
 STATIC chan_t chans[LEDC_SPEED_MODE_MAX][LEDC_CHANNEL_MAX];
 
-// Total number of timers
-#define PWM_TIMER_MAX (LEDC_SPEED_MODE_MAX * LEDC_TIMER_MAX)
-
 // List of timer configs
 STATIC ledc_timer_config_t timers[LEDC_SPEED_MODE_MAX][LEDC_TIMER_MAX];
 
@@ -68,7 +62,7 @@ STATIC ledc_timer_config_t timers[LEDC_SPEED_MODE_MAX][LEDC_TIMER_MAX];
 #define PWM_RES_10_BIT (LEDC_TIMER_10_BIT)
 
 // Maximum duty value on 10-bit resolution
-#define MAX_DUTY_U10 (1 << PWM_RES_10_BIT) 
+#define MAX_DUTY_U10 (1 << PWM_RES_10_BIT)
 // https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/peripherals/ledc.html#supported-range-of-frequency-and-duty-resolutions
 // duty() uses 10-bit resolution or less
 // duty_u16() and duty_ns() use 16-bit resolution or less
@@ -517,7 +511,7 @@ STATIC void select_a_timer(machine_pwm_obj_t *self, int freq) {
                 }
             }
             if (timer < 0) {
-                mp_raise_msg_varg(&mp_type_ValueError, MP_ERROR_TEXT("out of PWM timers:%d"), PWM_TIMER_MAX);
+                mp_raise_msg_varg(&mp_type_ValueError, MP_ERROR_TEXT("out of the total number of PWM timers:%d"), LEDC_SPEED_MODE_MAX * LEDC_TIMER_MAX);
             }
         }
         self->mode = mode;
@@ -608,7 +602,7 @@ STATIC void mp_machine_pwm_init_helper(machine_pwm_obj_t *self,
     }
 
     self->output_invert = args[ARG_invert].u_int == 0 ? 0 : 1;
-    
+
     int save_mode = self->mode;
     int save_channel = self->channel;
     int save_timer = self->timer;
@@ -621,7 +615,7 @@ STATIC void mp_machine_pwm_init_helper(machine_pwm_obj_t *self,
         channel = find_channel(mode, self->pin);
     }
     if (channel < 0) {
-        mp_raise_msg_varg(&mp_type_ValueError, MP_ERROR_TEXT("out of PWM channels:%d"), PWM_CHANNEL_MAX); // in all modes
+        mp_raise_msg_varg(&mp_type_ValueError, MP_ERROR_TEXT("out of the total number of PWM channels:%d"), LEDC_SPEED_MODE_MAX * LEDC_CHANNEL_MAX); // in all modes
     }
     self->mode = mode;
     self->channel = channel;
