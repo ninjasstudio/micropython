@@ -27,7 +27,6 @@
  * THE SOFTWARE.
  */
 
-#include <assert.h>
 #include <math.h>
 
 #include "py/mpprint.h"
@@ -111,10 +110,6 @@ typedef struct _machine_pwm_obj_t {
 } machine_pwm_obj_t;
 
 STATIC void register_channel(int mode, int channel, int pin, int timer) {
-    assert(mode >= 0);
-    assert(channel >= 0);
-    assert(pin >= 0);
-    assert(timer >= 0);
     if ((mode >= 0) && (mode < LEDC_SPEED_MODE_MAX)
     && (channel >= 0) && (channel < LEDC_CHANNEL_MAX)) {
         chans[mode][channel].pin = pin;
@@ -123,8 +118,6 @@ STATIC void register_channel(int mode, int channel, int pin, int timer) {
 }
 
 STATIC void unregister_channel(int mode, int channel) {
-    assert(mode >= 0);
-    assert(channel >= 0);
     if ((mode >= 0) && (mode < LEDC_SPEED_MODE_MAX)
     && (channel >= 0) && (channel < LEDC_CHANNEL_MAX)) {
         chans[mode][channel].pin = -1;
@@ -181,7 +174,6 @@ STATIC void pwm_deinit(int mode, int channel) {
             // Mark it unused, and tell the hardware to stop routing
             check_esp_err(ledc_stop(mode, channel, 0));
             // Disable ledc signal for the pin
-            // esp_rom_gpio_connect_out_signal(pin, SIG_GPIO_OUT_IDX, false, false);
             if (mode == LEDC_LOW_SPEED_MODE) {
                 esp_rom_gpio_connect_out_signal(pin, LEDC_LS_SIG_OUT0_IDX + channel, false, true);
             } else {
@@ -480,7 +472,6 @@ STATIC void select_a_timer(machine_pwm_obj_t *self, int freq) {
     }
     // If the timer is found, then bind and set the duty
     if ((timer >= 0) && (timers[mode][timer].freq_hz != 0)
-//  && ((self->timer != timer) || (self->mode != mode))
     && (self->channel >= 0)
     && (self->mode >= 0)) {
         // Bind the channel to the new timer
@@ -516,7 +507,6 @@ STATIC void select_a_timer(machine_pwm_obj_t *self, int freq) {
         }
         self->mode = mode;
         self->timer = timer;
-        // register_channel(self->mode, self->channel, self->pin, self->timer);
     }
     if ((save_mode != self->mode) || (save_channel != self->channel)) {
         unregister_channel(save_mode, save_channel);
@@ -643,9 +633,9 @@ STATIC void mp_machine_pwm_init_helper(machine_pwm_obj_t *self,
 
     // New PWM assignment
     if ((chans[mode][channel].pin < 0)
-    || ((save_mode != self->mode)) // && (save_mode >= 0))
-    || ((save_channel != self->channel)) // && (save_channel >= 0))
-    || ((save_timer != self->timer))) { // && (save_timer >= 0))) {
+    || ((save_mode != self->mode))
+    || ((save_channel != self->channel))
+    || ((save_timer != self->timer))) {
         configure_channel(self);
     }
     register_channel(self->mode, self->channel, self->pin, self->timer);
