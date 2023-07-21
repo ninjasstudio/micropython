@@ -3,7 +3,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2022 Ibrahim Abdelkader <iabdalkader@openmv.io>
+ * Copyright (c) 2023 Arduino SA
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,37 +24,14 @@
  * THE SOFTWARE.
  */
 
-#include "py/runtime.h"
-#include "py/mphal.h"
-#include "modmachine.h"
+#ifndef MICROPY_INCLUDED_ESP32_DOUBLE_TAP_H
+#define MICROPY_INCLUDED_ESP32_DOUBLE_TAP_H
 
-#if MICROPY_HW_USB_CDC_1200BPS_TOUCH && MICROPY_HW_ENABLE_USBDEV
+#include <stdint.h>
 
-#include "tusb.h"
+void double_tap_init(void);
+void double_tap_mark(void);
+void double_tap_invalidate(void);
+bool double_tap_check_match(void);
 
-static mp_sched_node_t mp_bootloader_sched_node;
-
-STATIC void usbd_cdc_run_bootloader_task(mp_sched_node_t *node) {
-    mp_hal_delay_ms(250);
-    machine_bootloader(0, NULL);
-}
-
-void
-#if MICROPY_HW_USB_EXTERNAL_TINYUSB
-mp_usbd_line_state_cb
-#else
-tud_cdc_line_state_cb
-#endif
-    (uint8_t itf, bool dtr, bool rts) {
-    if (dtr == false && rts == false) {
-        // Device is disconnected.
-        cdc_line_coding_t line_coding;
-        tud_cdc_n_get_line_coding(itf, &line_coding);
-        if (line_coding.bit_rate == 1200) {
-            // Delay bootloader jump to allow the USB stack to service endpoints.
-            mp_sched_schedule_node(&mp_bootloader_sched_node, usbd_cdc_run_bootloader_task);
-        }
-    }
-}
-
-#endif
+#endif /* MICROPY_INCLUDED_ESP32_DOUBLE_TAP_H */
