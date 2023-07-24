@@ -160,7 +160,7 @@ low all of the time.
     PWM(Pin(27), freq=998, duty_u16=64511)  # resolution=16, (duty=98.44%, resolution=0.002%), mode=0, channel=0, timer=0
     ...
     PWM(Pin(27), freq=998, duty_u16=1279)  # resolution=16, (duty=1.95%, resolution=0.002%), mode=0, channel=0, timer=0
-    PWM(Pin(27), freq=998, duty_u16=1023)  # resolution=16, (duty=1.56%, resolution=0.002%), mode=0, channel=0, timer=0
+    PWM(Pin(27), freq=998, duty_u16=1024)  # resolution=16, (duty=1.56%, resolution=0.002%), mode=0, channel=0, timer=0
     PWM(Pin(27), freq=998, duty_u16=767)  # resolution=16, (duty=1.17%, resolution=0.002%), mode=0, channel=0, timer=0
     PWM(Pin(27), freq=998, duty_u16=511)  # resolution=16, (duty=0.78%, resolution=0.002%), mode=0, channel=0, timer=0
     PWM(Pin(27), freq=998, duty_u16=255)  # resolution=16, (duty=0.39%, resolution=0.002%), mode=0, channel=0, timer=0

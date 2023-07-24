@@ -296,8 +296,8 @@ Use the :ref:`machine.PWM <machine.PWM>` class::
     freq = pwm0.freq()         # get current frequency
     pwm0.freq(1000)            # set PWM frequency from 1Hz to 40MHz
 
-    duty = pwm0.duty()         # get current duty cycle, range 0-1023 (default 512, 50%)
-    pwm0.duty(256)             # set duty cycle from 0 to 1023 as a ratio duty/1023, (now 25%)
+    duty = pwm0.duty()         # get current duty cycle, range 0-1024 (default 512, 50%)
+    pwm0.duty(256)             # set duty cycle from 0 to 1024 as a ratio duty/1024, (now 25%)
 
     duty_u16 = pwm0.duty_u16() # get current duty cycle, range 0-65536
     pwm0.duty_u16(2**16*3//4)  # set duty cycle from 0 to 65536 as a ratio duty_u16/65536, (now 75%)
