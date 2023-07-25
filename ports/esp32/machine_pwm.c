@@ -57,6 +57,10 @@ STATIC chan_t chans[LEDC_SPEED_MODE_MAX][LEDC_CHANNEL_MAX];
 // List of timer configs
 STATIC ledc_timer_config_t timers[LEDC_SPEED_MODE_MAX][LEDC_TIMER_MAX];
 
+// Params for PWM operation
+// 5khz is default frequency
+#define PWM_FREQ (5000)
+
 // 10-bit resolution (compatible with esp8266 PWM)
 #define PWM_RES_10_BIT (LEDC_TIMER_10_BIT)
 
@@ -289,23 +293,12 @@ STATIC void set_duty_u16(machine_pwm_obj_t *self, int duty) {
     } else if (channel_duty > max_duty) {
         channel_duty = max_duty;
     }
+    check_esp_err(ledc_set_duty(self->mode, self->channel, channel_duty));
+    check_esp_err(ledc_update_duty(self->mode, self->channel));
 
     self->duty_x = HIGHEST_PWM_RES;
     self->duty = duty;
-
-    PWM_DBG("set_duty_u16() self->channel_duty=%d, channel_duty=%d, duty=%d\n", self->channel_duty, channel_duty, duty);
-    if (channel_duty == max_duty) {
-        self->channel_duty = channel_duty;
-        configure_channel(self);
-    } else {
-        if (self->channel_duty == max_duty) {
-            self->channel_duty = channel_duty;
-            configure_channel(self);
-        }
-        self->channel_duty =  channel_duty;
-        check_esp_err(ledc_set_duty(self->mode, self->channel, channel_duty));
-        check_esp_err(ledc_update_duty(self->mode, self->channel));
-    }
+    self->channel_duty = channel_duty;
 }
 
 STATIC void set_duty_u10(machine_pwm_obj_t *self, int duty) {
@@ -589,6 +582,9 @@ STATIC void mp_machine_pwm_init_helper(machine_pwm_obj_t *self,
     } else if (duty >= 0) {
         self->duty_x = PWM_RES_10_BIT;
         self->duty = duty;
+    } else if (self->duty_x == 0) {
+        self->duty_x = HIGHEST_PWM_RES;
+        self->duty = (1 << PWM_RES_16_BIT) / 2; // 50%
     }
 
     self->output_invert = args[ARG_invert].u_int == 0 ? 0 : 1;
@@ -620,12 +616,9 @@ STATIC void mp_machine_pwm_init_helper(machine_pwm_obj_t *self,
         if (chans[mode][channel].timer >= 0) {
             freq = timers[mode][chans[mode][channel].timer].freq_hz;
         }
-    }
-
-    self->active = true;
-
-    if ((freq < 0) || (self->duty_x == 0)) {
-        return;
+        if (freq <= 0) {
+            freq = PWM_FREQ;
+        }
     }
 
     select_a_timer(self, freq);
@@ -639,6 +632,8 @@ STATIC void mp_machine_pwm_init_helper(machine_pwm_obj_t *self,
         configure_channel(self);
     }
     register_channel(self->mode, self->channel, self->pin, self->timer);
+
+    self->active = true;
 }
 
 // This called from PWM() constructor
