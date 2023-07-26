@@ -47,13 +47,16 @@ See also
 https://github.com/espressif/esp-idf/tree/master/examples/peripherals/pcnt/rotary_encoder
 */
 
+#include "py/mpprint.h"
 #include "py/runtime.h"
 #include "mphalport.h"
 #include "modmachine.h"
 
 #if MICROPY_PY_MACHINE_PCNT
 
+#include "rom/gpio.h"
 #include "driver/pcnt.h"
+#include "driver/pulse_cnt.h"
 #include "soc/pcnt_struct.h"
 #include "esp_err.h"
 
@@ -65,15 +68,9 @@ https://github.com/espressif/esp-idf/tree/master/examples/peripherals/pcnt/rotar
 STATIC pcnt_isr_handle_t pcnt_isr_handle = NULL;
 STATIC mp_pcnt_obj_t *pcnts[PCNT_UNIT_MAX] = {};
 
-#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 1, 0)
 #define EVT_THRES_0 PCNT_EVT_THRES_0
 #define EVT_THRES_1 PCNT_EVT_THRES_1
 #define EVT_ZERO    PCNT_EVT_ZERO
-#else
-#define EVT_THRES_0 (1 << PCNT_EVT_THRES_0)
-#define EVT_THRES_1 (1 << PCNT_EVT_THRES_1)
-#define EVT_ZERO    (1 << PCNT_EVT_ZERO)
-#endif
 
 /* Decode what PCNT's unit originated an interrupt
  * and pass this information together with the event type
@@ -94,7 +91,7 @@ STATIC mp_pcnt_obj_t *pcnts[PCNT_UNIT_MAX] = {};
 #endif
 STATIC void IRAM_ATTR pcnt_intr_handler(void *arg) {
     for (int id = 0; id < PCNT_UNIT_MAX; ++id) {
-        if (PCNT.int_st.val & (1 << id)) {
+        if (PCNT.int_st.val & BIT(id)) {
             mp_pcnt_obj_t *self = pcnts[id];
             if (self != NULL) {
                 if (PCNT.status_unit[id].H_LIM_LAT) {
@@ -126,7 +123,7 @@ STATIC void IRAM_ATTR pcnt_intr_handler(void *arg) {
                     }
                 }
             }
-            PCNT.int_clr.val |= 1 << id; // clear the interrupt
+            PCNT.int_clr.val |= BIT(id); // clear the interrupt
         }
     }
 }
@@ -202,6 +199,8 @@ STATIC void pcnt_deinit(mp_pcnt_obj_t *self) {
     if (self != NULL) {
         check_esp_err(pcnt_counter_pause(self->unit));
 
+        pcnt_intr_disable(self->unit);
+
         check_esp_err(pcnt_event_disable(self->unit, PCNT_EVT_L_LIM));
         check_esp_err(pcnt_event_disable(self->unit, PCNT_EVT_H_LIM));
         pcnt_disable_events(self);
@@ -221,9 +220,7 @@ void machine_encoder_deinit_all(void) {
         pcnt_deinit(pcnts[id]);
     }
     if (pcnt_isr_handle != NULL) {
-        #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 2, 0)
         check_esp_err(pcnt_isr_unregister(pcnt_isr_handle));
-        #endif
         pcnt_isr_handle = NULL;
     }
 }
@@ -310,8 +307,12 @@ mp_obj_t machine_PCNT_status(mp_obj_t self_in) {
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(machine_PCNT_status_obj, machine_PCNT_status);
 
+static inline counter_t remainder_of_division(counter_t divident, counter_t divider) {
+    return divident - divident / divider * divider;
+}
+
 // -----------------------------------------------------------------
-STATIC mp_obj_t machine_PCNT_irq(mp_uint_t n_pos_args, const mp_obj_t *pos_args, mp_map_t *kw_args) {
+STATIC mp_obj_t machine_PCNT_irq(size_t n_pos_args, const mp_obj_t *pos_args, mp_map_t *kw_args) {
     enum { ARG_handler, ARG_trigger, ARG_value };
     static const mp_arg_t allowed_args[] = {
         { MP_QSTR_handler, MP_ARG_OBJ, {.u_obj = mp_const_none} },
@@ -344,16 +345,25 @@ STATIC mp_obj_t machine_PCNT_irq(mp_uint_t n_pos_args, const mp_obj_t *pos_args,
         if (trigger & EVT_THRES_1) {
             if (args[ARG_value].u_obj != MP_OBJ_NULL) {
                 self->match1 = GET_INT(args[ARG_value].u_obj);
+                #ifdef USE_INT64
+                self->counter_match1 = remainder_of_division(self->match1, INT16_ROLL);
+                #else
                 self->counter_match1 = self->match1 % INT16_ROLL;
+                #endif
                 check_esp_err(pcnt_set_event_value(self->unit, EVT_THRES_1, (int16_t)self->counter_match1));
                 self->counter_match1 = self->match1 - self->counter_match1;
             }
             self->handler_match1 = handler;
             pcnt_event_enable(self->unit, EVT_THRES_1);
-        } else if (trigger & EVT_THRES_0) {
+        }
+        if (trigger & EVT_THRES_0) {
             if (args[ARG_value].u_obj != MP_OBJ_NULL) {
                 self->match2 = GET_INT(args[ARG_value].u_obj);
+                #ifdef USE_INT64
+                self->counter_match2 = remainder_of_division(self->match2, INT16_ROLL);
+                #else
                 self->counter_match2 = self->match2 % INT16_ROLL;
+                #endif
                 check_esp_err(pcnt_set_event_value(self->unit, EVT_THRES_0, (int16_t)self->counter_match2));
                 self->counter_match2 = self->match2 - self->counter_match2;
             }
@@ -364,10 +374,6 @@ STATIC mp_obj_t machine_PCNT_irq(mp_uint_t n_pos_args, const mp_obj_t *pos_args,
             self->handler_zero = handler;
             pcnt_event_enable(self->unit, EVT_ZERO);
         }
-        /*
-        check_esp_err(pcnt_counter_clear(self->unit));
-        self->counter = 0;
-        */
     }
     return mp_const_none;
 }
@@ -398,12 +404,12 @@ STATIC void mp_machine_Counter_init_helper(mp_pcnt_obj_t *self, size_t n_args, c
         mp_raise_ValueError(MP_ERROR_TEXT(MP_ERROR_TEXT("src")));
     }
 
+    mp_obj_t direction = args[ARG_direction].u_obj;
     if (args[ARG__src].u_obj != MP_OBJ_NULL) {
         self->bPinNumber = pin_or_int(args[ARG__src].u_obj);
         self->x124 = -1;
     } else {
         self->x124 = 0;
-        mp_obj_t direction = args[ARG_direction].u_obj;
         if (direction != MP_OBJ_NULL) {
             if (mp_obj_is_type(direction, &machine_pin_type)) {
                 self->bPinNumber = pin_or_int(direction);
@@ -475,6 +481,12 @@ STATIC void mp_machine_Counter_init_helper(mp_pcnt_obj_t *self, size_t n_args, c
     }
 
     check_esp_err(pcnt_unit_config(&r_enc_config));
+
+    if (direction != MP_OBJ_NULL) {
+        if (GPIO_ID_IS_PIN_REGISTER(r_enc_config.ctrl_gpio_num)) {
+            gpio_set_direction(r_enc_config.ctrl_gpio_num, GPIO_MODE_INPUT_OUTPUT);
+        }
+    }
 
     if (args[ARG_filter_ns].u_int != -1) {
         self->filter = ns_to_filter(args[ARG_filter_ns].u_int);
