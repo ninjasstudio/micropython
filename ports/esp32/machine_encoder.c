@@ -47,13 +47,16 @@ See also
 https://github.com/espressif/esp-idf/tree/master/examples/peripherals/pcnt/rotary_encoder
 */
 
+#include "py/mpprint.h"
 #include "py/runtime.h"
 #include "mphalport.h"
 #include "modmachine.h"
 
 #if MICROPY_PY_MACHINE_PCNT
 
+#include "rom/gpio.h"
 #include "driver/pcnt.h"
+#include "driver/pulse_cnt.h"
 #include "soc/pcnt_struct.h"
 #include "esp_err.h"
 
@@ -65,68 +68,51 @@ https://github.com/espressif/esp-idf/tree/master/examples/peripherals/pcnt/rotar
 STATIC pcnt_isr_handle_t pcnt_isr_handle = NULL;
 STATIC mp_pcnt_obj_t *pcnts[PCNT_UNIT_MAX] = {};
 
-#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 1, 0)
-#define EVT_THRES_0 PCNT_EVT_THRES_0
-#define EVT_THRES_1 PCNT_EVT_THRES_1
-#define EVT_ZERO    PCNT_EVT_ZERO
-#else
-#define EVT_THRES_0 (1 << PCNT_EVT_THRES_0)
-#define EVT_THRES_1 (1 << PCNT_EVT_THRES_1)
-#define EVT_ZERO    (1 << PCNT_EVT_ZERO)
-#endif
-
 /* Decode what PCNT's unit originated an interrupt
  * and pass this information together with the event type
  * the main program using a queue.
  */
-#if CONFIG_IDF_TARGET_ESP32S2 || CONFIG_IDF_TARGET_ESP32S3
-#define H_LIM_LAT  cnt_thr_h_lim_lat_un
-#define L_LIM_LAT  cnt_thr_l_lim_lat_un
-#define THRES0_LAT cnt_thr_thres0_lat_un
-#define THRES1_LAT cnt_thr_thres0_lat_un
-#define ZERO_LAT   cnt_thr_zero_lat_un
-#else
-#define H_LIM_LAT  h_lim_lat
-#define L_LIM_LAT  l_lim_lat
-#define THRES0_LAT thres0_lat
-#define THRES1_LAT thres1_lat
-#define ZERO_LAT   zero_lat
-#endif
 STATIC void IRAM_ATTR pcnt_intr_handler(void *arg) {
+    uint32_t intr_status = PCNT.int_st.val;
+    uint32_t status_unit;
     for (int id = 0; id < PCNT_UNIT_MAX; ++id) {
-        if (PCNT.int_st.val & (1 << id)) {
+        if (intr_status & BIT(id)) {
+            PCNT.int_clr.val = BIT(id); // clear the interrupt
+            status_unit = PCNT.status_unit[id].val;
             mp_pcnt_obj_t *self = pcnts[id];
             if (self != NULL) {
-                if (PCNT.status_unit[id].H_LIM_LAT) {
+                if (status_unit & PCNT_EVT_H_LIM) {
                     self->counter += INT16_ROLL;
-                } else if (PCNT.status_unit[id].L_LIM_LAT) {
+                } else if (status_unit & PCNT_EVT_L_LIM) {
                     self->counter -= INT16_ROLL;
                 }
 
-                self->status = 0;
-                if (PCNT.status_unit[id].THRES1_LAT) {
-                    if (self->counter == self->counter_match1) {
-                        self->status |= EVT_THRES_1;
+                self->status = status_unit;
+                if (status_unit & PCNT_EVT_THRES_1) {
+                    int16_t count;
+                    pcnt_get_counter_value(self->unit, &count);
+                    if ((self->counter + count) == self->match1) {
                         mp_sched_schedule(self->handler_match1, MP_OBJ_FROM_PTR(self));
                         mp_hal_wake_main_task_from_isr();
                     }
                 }
-                if (PCNT.status_unit[id].THRES0_LAT) {
-                    if (self->counter == self->counter_match2) {
-                        self->status |= EVT_THRES_0;
-                        mp_sched_schedule(self->handler_match2, MP_OBJ_FROM_PTR(self));
+                if (status_unit & PCNT_EVT_THRES_0) {
+                    int16_t count;
+                    pcnt_get_counter_value(self->unit, &count);
+                    if ((self->counter + count) == self->match1) {
+                        mp_sched_schedule(self->handler_match1, MP_OBJ_FROM_PTR(self));
                         mp_hal_wake_main_task_from_isr();
                     }
                 }
-                if (PCNT.status_unit[id].ZERO_LAT) {
+                if (status_unit & PCNT_EVT_ZERO) {
                     if (self->counter == 0) {
-                        self->status |= EVT_ZERO;
+                        //self->status |= PCNT_EVT_ZERO;
                         mp_sched_schedule(self->handler_zero, MP_OBJ_FROM_PTR(self));
                         mp_hal_wake_main_task_from_isr();
                     }
                 }
             }
-            PCNT.int_clr.val |= 1 << id; // clear the interrupt
+            //PCNT.int_clr.val = BIT(id); // clear the interrupt
         }
     }
 }
@@ -137,6 +123,7 @@ STATIC void register_isr_handler(void) {
         if (pcnt_isr_handle == NULL) {
             mp_raise_msg(&mp_type_Exception, MP_ERROR_TEXT("wrap interrupt failed"));
         }
+        PCNT.int_clr.val = 0xff; // clear the interrupts
     }
 }
 
@@ -185,15 +172,16 @@ STATIC void set_filter_value(pcnt_unit_t unit, int16_t value) {
 
 STATIC void pcnt_disable_events(mp_pcnt_obj_t *self) {
     if (self->handler_match2 != MP_OBJ_NULL) {
-        check_esp_err(pcnt_event_disable(self->unit, EVT_THRES_0));
+        check_esp_err(pcnt_event_disable(self->unit, PCNT_EVT_THRES_0));
         self->handler_match2 = MP_OBJ_NULL;
     }
     if (self->handler_match1 != MP_OBJ_NULL) {
-        check_esp_err(pcnt_event_disable(self->unit, EVT_THRES_1));
+        check_esp_err(pcnt_event_disable(self->unit, PCNT_EVT_THRES_1));
+        check_esp_err(pcnt_event_disable(self->unit, PCNT_EVT_THRES_0));
         self->handler_match1 = MP_OBJ_NULL;
     }
     if (self->handler_zero != MP_OBJ_NULL) {
-        check_esp_err(pcnt_event_disable(self->unit, EVT_ZERO));
+        check_esp_err(pcnt_event_disable(self->unit, PCNT_EVT_ZERO));
         self->handler_zero = MP_OBJ_NULL;
     }
 }
@@ -201,6 +189,8 @@ STATIC void pcnt_disable_events(mp_pcnt_obj_t *self) {
 STATIC void pcnt_deinit(mp_pcnt_obj_t *self) {
     if (self != NULL) {
         check_esp_err(pcnt_counter_pause(self->unit));
+
+        pcnt_intr_disable(self->unit);
 
         check_esp_err(pcnt_event_disable(self->unit, PCNT_EVT_L_LIM));
         check_esp_err(pcnt_event_disable(self->unit, PCNT_EVT_H_LIM));
@@ -221,9 +211,7 @@ void machine_encoder_deinit_all(void) {
         pcnt_deinit(pcnts[id]);
     }
     if (pcnt_isr_handle != NULL) {
-        #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 2, 0)
         check_esp_err(pcnt_isr_unregister(pcnt_isr_handle));
-        #endif
         pcnt_isr_handle = NULL;
     }
 }
@@ -310,12 +298,16 @@ mp_obj_t machine_PCNT_status(mp_obj_t self_in) {
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(machine_PCNT_status_obj, machine_PCNT_status);
 
+static inline counter_t remainder_of_division(counter_t divident, counter_t divider) {
+    return divident - divident / divider * divider;
+}
+
 // -----------------------------------------------------------------
-STATIC mp_obj_t machine_PCNT_irq(mp_uint_t n_pos_args, const mp_obj_t *pos_args, mp_map_t *kw_args) {
+STATIC mp_obj_t machine_PCNT_irq(size_t n_pos_args, const mp_obj_t *pos_args, mp_map_t *kw_args) {
     enum { ARG_handler, ARG_trigger, ARG_value };
     static const mp_arg_t allowed_args[] = {
         { MP_QSTR_handler, MP_ARG_OBJ, {.u_obj = mp_const_none} },
-        { MP_QSTR_trigger, MP_ARG_INT, {.u_int = EVT_THRES_0 | EVT_THRES_1 | EVT_ZERO} },
+        { MP_QSTR_trigger, MP_ARG_INT, {.u_int = PCNT_EVT_THRES_1 | PCNT_EVT_ZERO} },
         { MP_QSTR_value, MP_ARG_OBJ, {.u_obj = MP_OBJ_NULL} },
     };
 
@@ -326,48 +318,53 @@ STATIC mp_obj_t machine_PCNT_irq(mp_uint_t n_pos_args, const mp_obj_t *pos_args,
     mp_obj_t handler = args[ARG_handler].u_obj;
     mp_uint_t trigger = args[ARG_trigger].u_int;
 
-    if (trigger & ~(EVT_THRES_1 | EVT_THRES_0 | EVT_ZERO)) {
+    if (trigger & ~(PCNT_EVT_THRES_1 | PCNT_EVT_ZERO)) {
         mp_raise_ValueError(MP_ERROR_TEXT("trigger"));
     }
 
     if (handler == mp_const_none) {
-        if (trigger & EVT_THRES_1) {
-            pcnt_event_disable(self->unit, EVT_THRES_1);
+        if (trigger & PCNT_EVT_THRES_1) {
+            pcnt_event_disable(self->unit, PCNT_EVT_THRES_1);
+            pcnt_event_disable(self->unit, PCNT_EVT_THRES_0);
         }
-        if (trigger & EVT_THRES_0) {
-            pcnt_event_disable(self->unit, EVT_THRES_0);
+        if (trigger & PCNT_EVT_THRES_0) {
+            pcnt_event_disable(self->unit, PCNT_EVT_THRES_0);
         }
-        if (trigger & EVT_ZERO) {
-            pcnt_event_disable(self->unit, EVT_ZERO);
+        if (trigger & PCNT_EVT_ZERO) {
+            pcnt_event_disable(self->unit, PCNT_EVT_ZERO);
         }
     } else {
-        if (trigger & EVT_THRES_1) {
+        if (trigger & PCNT_EVT_THRES_1) {
             if (args[ARG_value].u_obj != MP_OBJ_NULL) {
-                self->match1 = GET_INT(args[ARG_value].u_obj);
-                self->counter_match1 = self->match1 % INT16_ROLL;
-                check_esp_err(pcnt_set_event_value(self->unit, EVT_THRES_1, (int16_t)self->counter_match1));
-                self->counter_match1 = self->match1 - self->counter_match1;
+                counter_t match1 = GET_INT(args[ARG_value].u_obj);
+                if (self->match1 != match1) {
+                    self->match1 = match1;
+                    pcnt_event_disable(self->unit, PCNT_EVT_THRES_1);
+                    pcnt_event_disable(self->unit, PCNT_EVT_THRES_0);
+
+                    int16_t count;
+                    pcnt_get_counter_value(self->unit, &count);
+                    self->counter += count;
+
+                    #ifdef USE_INT64
+                    counter_t counter_match = remainder_of_division(self->counter + self->match1, INT16_ROLL);
+                    #else
+                    counter_t counter_match = (self->match1 - self->counter % INT16_ROLL) % INT16_ROLL;
+                    #endif
+                    check_esp_err(pcnt_set_event_value(self->unit, PCNT_EVT_THRES_1, (int16_t)counter_match));
+                    check_esp_err(pcnt_set_event_value(self->unit, PCNT_EVT_THRES_0, (int16_t)(-INT16_ROLL + counter_match)));
+
+                    pcnt_counter_clear(self->unit);
+                }
             }
             self->handler_match1 = handler;
-            pcnt_event_enable(self->unit, EVT_THRES_1);
-        } else if (trigger & EVT_THRES_0) {
-            if (args[ARG_value].u_obj != MP_OBJ_NULL) {
-                self->match2 = GET_INT(args[ARG_value].u_obj);
-                self->counter_match2 = self->match2 % INT16_ROLL;
-                check_esp_err(pcnt_set_event_value(self->unit, EVT_THRES_0, (int16_t)self->counter_match2));
-                self->counter_match2 = self->match2 - self->counter_match2;
-            }
-            self->handler_match2 = handler;
-            pcnt_event_enable(self->unit, EVT_THRES_0);
+            pcnt_event_enable(self->unit, PCNT_EVT_THRES_1);
+            pcnt_event_enable(self->unit, PCNT_EVT_THRES_0);
         }
-        if (trigger & EVT_ZERO) {
+        if (trigger & PCNT_EVT_ZERO) {
             self->handler_zero = handler;
-            pcnt_event_enable(self->unit, EVT_ZERO);
+            pcnt_event_enable(self->unit, PCNT_EVT_ZERO);
         }
-        /*
-        check_esp_err(pcnt_counter_clear(self->unit));
-        self->counter = 0;
-        */
     }
     return mp_const_none;
 }
@@ -398,14 +395,14 @@ STATIC void mp_machine_Counter_init_helper(mp_pcnt_obj_t *self, size_t n_args, c
         mp_raise_ValueError(MP_ERROR_TEXT(MP_ERROR_TEXT("src")));
     }
 
+    mp_obj_t direction = args[ARG_direction].u_obj;
     if (args[ARG__src].u_obj != MP_OBJ_NULL) {
         self->bPinNumber = pin_or_int(args[ARG__src].u_obj);
         self->x124 = -1;
     } else {
         self->x124 = 0;
-        mp_obj_t direction = args[ARG_direction].u_obj;
         if (direction != MP_OBJ_NULL) {
-            if (mp_obj_is_type(direction, &machine_pin_type)) {
+            if (mp_obj_is_type(direction, &machine_pin_type) || mp_obj_is_small_int(direction)) {
                 self->bPinNumber = pin_or_int(direction);
             } else {
                 self->bPinNumber = mp_obj_get_int(direction);
@@ -476,6 +473,12 @@ STATIC void mp_machine_Counter_init_helper(mp_pcnt_obj_t *self, size_t n_args, c
 
     check_esp_err(pcnt_unit_config(&r_enc_config));
 
+    if (direction != MP_OBJ_NULL) {
+        if (GPIO_ID_IS_PIN_REGISTER(r_enc_config.ctrl_gpio_num)) {
+            gpio_set_direction(r_enc_config.ctrl_gpio_num, GPIO_MODE_INPUT_OUTPUT);
+        }
+    }
+
     if (args[ARG_filter_ns].u_int != -1) {
         self->filter = ns_to_filter(args[ARG_filter_ns].u_int);
     }
@@ -495,6 +498,15 @@ STATIC void mp_machine_Counter_init_helper(mp_pcnt_obj_t *self, size_t n_args, c
     check_esp_err(pcnt_counter_resume(self->unit));
 }
 
+STATIC int find_free_unit() {
+    for (int id = 0; id < PCNT_UNIT_MAX; ++id) {
+        if (!pcnts[id]) {
+            return id;
+        }
+    }
+    return -1;
+}
+
 STATIC void pcnt_init_new(mp_pcnt_obj_t *self, size_t n_args, const mp_obj_t *args) {
     self->aPinNumber = PCNT_PIN_NOT_USED;
     self->bPinNumber = PCNT_PIN_NOT_USED;
@@ -505,18 +517,22 @@ STATIC void pcnt_init_new(mp_pcnt_obj_t *self, size_t n_args, const mp_obj_t *ar
     self->status = 0;
     self->match1 = 0;
     self->match2 = 0;
-    self->counter_match1 = 0;
-    self->counter_match2 = 0;
     self->handler_match1 = MP_OBJ_NULL;
     self->handler_match2 = MP_OBJ_NULL;
     self->handler_zero = MP_OBJ_NULL;
 
     self->unit = mp_obj_get_int(args[0]);
+    if (self->unit == -1) {
+        self->unit = find_free_unit();
+        if (self->unit < 0) {
+            mp_raise_msg_varg(&mp_type_RuntimeError, MP_ERROR_TEXT("out of PCNT units:%d"), PCNT_UNIT_MAX - 1);
+        }
+    }
     if ((self->unit < 0) || (self->unit >= PCNT_UNIT_MAX)) {
         mp_raise_msg_varg(&mp_type_ValueError, MP_ERROR_TEXT("id must be from 0 to %d"), PCNT_UNIT_MAX - 1);
     }
     if (pcnts[self->unit] != MP_OBJ_NULL) {
-        mp_raise_msg(&mp_type_Exception, MP_ERROR_TEXT("already used"));
+        mp_raise_msg(&mp_type_RuntimeError, MP_ERROR_TEXT("already used"));
     }
 
     if (n_args >= 2) {
@@ -553,6 +569,9 @@ STATIC void common_print_kw(const mp_print_t *print, mp_pcnt_obj_t *self) {
     if (self->handler_match2 != MP_OBJ_NULL) {
         mp_printf(print, ", match2=%ld", self->match2);
     }
+    if (self->handler_zero != MP_OBJ_NULL) {
+        mp_printf(print, ", match=0");
+    }
     mp_printf(print, ", filter_ns=%d)", filter_to_ns(self->filter));
 }
 
@@ -587,9 +606,8 @@ STATIC void machine_Counter_print(const mp_print_t *print, mp_obj_t self_obj, mp
     { MP_ROM_QSTR(MP_QSTR_irq), MP_ROM_PTR(&machine_PCNT_irq_obj) }
 
 #define COMMON_CONSTANTS \
-    { MP_ROM_QSTR(MP_QSTR_IRQ_ZERO), MP_ROM_INT(EVT_ZERO) }, \
-    { MP_ROM_QSTR(MP_QSTR_IRQ_MATCH1), MP_ROM_INT(EVT_THRES_1) }, \
-    { MP_ROM_QSTR(MP_QSTR_IRQ_MATCH2), MP_ROM_INT(EVT_THRES_0) }
+    { MP_ROM_QSTR(MP_QSTR_IRQ_ZERO), MP_ROM_INT(PCNT_EVT_ZERO) }, \
+    { MP_ROM_QSTR(MP_QSTR_IRQ_MATCH1), MP_ROM_INT(PCNT_EVT_THRES_1) }
 
 STATIC const mp_rom_map_elem_t machine_Counter_locals_dict_table[] = {
     { MP_ROM_QSTR(MP_QSTR_init), MP_ROM_PTR(&machine_Counter_init_obj) },
