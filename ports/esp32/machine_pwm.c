@@ -103,7 +103,6 @@ STATIC bool pwm_inited = false;
 typedef struct _machine_pwm_obj_t {
     mp_obj_base_t base;
     gpio_num_t pin;
-    bool active;
     int mode;
     int channel;
     int timer;
@@ -227,7 +226,7 @@ STATIC void configure_channel(machine_pwm_obj_t *self) {
 }
 
 STATIC void pwm_is_active(machine_pwm_obj_t *self) {
-    if (!self->active) {
+    if (self->timer < 0) {
         mp_raise_msg(&mp_type_RuntimeError, MP_ERROR_TEXT("PWM is inactive"));
     }
 }
@@ -495,7 +494,7 @@ STATIC void select_a_timer(machine_pwm_obj_t *self, int freq) {
                 }
             }
             if (timer < 0) {
-                mp_raise_msg_varg(&mp_type_ValueError, MP_ERROR_TEXT("out of the total number of PWM timers:%d"), LEDC_SPEED_MODE_MAX * LEDC_TIMER_MAX);
+                mp_raise_msg_varg(&mp_type_ValueError, MP_ERROR_TEXT("out of PWM timers:%d"), LEDC_SPEED_MODE_MAX * LEDC_TIMER_MAX);
             }
         }
         self->mode = mode;
@@ -512,7 +511,7 @@ STATIC void select_a_timer(machine_pwm_obj_t *self, int freq) {
 STATIC void mp_machine_pwm_print(const mp_print_t *print, mp_obj_t self_in, mp_print_kind_t kind) {
     machine_pwm_obj_t *self = MP_OBJ_TO_PTR(self_in);
     mp_printf(print, "PWM(Pin(%u)", self->pin);
-    if (self->active && (self->timer >=0)) {
+    if (self->timer >=0) {
         mp_printf(print, ", freq=%u", ledc_get_freq(self->mode, self->timer));
 
         if (self->duty_x == PWM_RES_10_BIT) {
@@ -565,9 +564,11 @@ STATIC void mp_machine_pwm_init_helper(machine_pwm_obj_t *self,
     int duty = args[ARG_duty].u_int;
     int duty_u16 = args[ARG_duty_u16].u_int;
     int duty_ns = args[ARG_duty_ns].u_int;
+    /*
     if (((duty != -1) && (duty_u16 != -1)) || ((duty != -1) && (duty_ns != -1)) || ((duty_u16 != -1) && (duty_ns != -1))) {
         mp_raise_ValueError(MP_ERROR_TEXT("only one of parameters 'duty', 'duty_u16' or 'duty_ns' is allowed"));
     }
+    */
     /*
     if ((duty < 0) && (duty_u16 < 0) && (duty_ns < 0)) {
         mp_raise_ValueError(MP_ERROR_TEXT("one of parameters 'duty', 'duty_u16', or 'duty_ns' is required"));
@@ -584,7 +585,7 @@ STATIC void mp_machine_pwm_init_helper(machine_pwm_obj_t *self,
         self->duty = duty;
     } else if (self->duty_x == 0) {
         self->duty_x = HIGHEST_PWM_RES;
-        self->duty = (1 << PWM_RES_16_BIT) / 2; // 50%
+        self->duty = (1 << HIGHEST_PWM_RES) / 2; // 50%
     }
 
     self->output_invert = args[ARG_invert].u_int == 0 ? 0 : 1;
@@ -601,7 +602,7 @@ STATIC void mp_machine_pwm_init_helper(machine_pwm_obj_t *self,
         channel = find_channel(mode, self->pin);
     }
     if (channel < 0) {
-        mp_raise_msg_varg(&mp_type_ValueError, MP_ERROR_TEXT("out of the total number of PWM channels:%d"), LEDC_SPEED_MODE_MAX * LEDC_CHANNEL_MAX); // in all modes
+        mp_raise_msg_varg(&mp_type_ValueError, MP_ERROR_TEXT("out of PWM channels:%d"), LEDC_SPEED_MODE_MAX * LEDC_CHANNEL_MAX); // in all modes
     }
     self->mode = mode;
     self->channel = channel;
@@ -645,7 +646,6 @@ STATIC mp_obj_t mp_machine_pwm_make_new(const mp_obj_type_t *type,
     // create PWM object from the given pin
     machine_pwm_obj_t *self = mp_obj_malloc(machine_pwm_obj_t, &machine_pwm_type);
     self->pin = pin_id;
-    self->active = false;
     self->mode = -1;
     self->channel = -1;
     self->timer = -1;
@@ -671,7 +671,6 @@ STATIC mp_obj_t mp_machine_pwm_make_new(const mp_obj_type_t *type,
 // This called from pwm.deinit() method
 STATIC void mp_machine_pwm_deinit(machine_pwm_obj_t *self) {
     pwm_deinit(self->mode, self->channel);
-    self->active = false;
     self->mode = -1;
     self->channel = -1;
     self->timer = -1;
