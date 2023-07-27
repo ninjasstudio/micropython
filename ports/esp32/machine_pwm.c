@@ -29,8 +29,6 @@
 
 #include <math.h>
 
-#include "py/mpprint.h"
-
 #include "py/runtime.h"
 #include "py/mphal.h"
 
@@ -39,8 +37,7 @@
 #include "esp_err.h"
 #include "soc/gpio_sig_map.h"
 
-#define PWM_DBG(...)
-//#define PWM_DBG(...) mp_printf(&mp_plat_print, __VA_ARGS__); mp_printf(&mp_plat_print, "\n");
+#include "py/mpprint.h"
 
 typedef struct _chan_t {
     // Which channel has which GPIO pin assigned?
@@ -130,7 +127,6 @@ STATIC void unregister_channel(int mode, int channel) {
 
 STATIC void pwm_init(void) {
     // Initial condition: no channels assigned
-
     for (int mode = 0; mode < LEDC_SPEED_MODE_MAX; ++mode) {
         for (int channel = 0; channel < LEDC_CHANNEL_MAX; ++channel) {
             unregister_channel(mode, channel);
@@ -176,18 +172,18 @@ STATIC void pwm_deinit(int mode, int channel) {
         if (pin >= 0) {
             // Mark it unused, and tell the hardware to stop routing
             check_esp_err(ledc_stop(mode, channel, 0));
+            /*
             // Disable ledc signal for the pin
             if (mode == LEDC_LOW_SPEED_MODE) {
-                esp_rom_gpio_connect_out_signal(pin, LEDC_LS_SIG_OUT0_IDX + channel, false, true);
+                esp_rom_gpio_connect_out_signal(pin, LEDC_LS_SIG_OUT0_IDX + channel, false, false);
             } else {
-                #if LEDC_SPEED_MODE_MAX > 1
-                #if CONFIG_IDF_TARGET_ESP32
-                esp_rom_gpio_connect_out_signal(pin, LEDC_HS_SIG_OUT0_IDX + channel, false, true);
-                #else
-                #error Add supported CONFIG_IDF_TARGET_ESP32_xxx
-                #endif
+                #if SOC_LEDC_SUPPORT_HS_MODE
+                esp_rom_gpio_connect_out_signal(pin, LEDC_HS_SIG_OUT0_IDX + channel, false, false);
                 #endif
             }
+            // reconfigure as GPIO
+            //gpio_set_direction(pin, GPIO_MODE_INPUT_OUTPUT);
+            */
         }
         unregister_channel(mode, channel);
     }
@@ -220,9 +216,48 @@ STATIC void configure_channel(machine_pwm_obj_t *self) {
     if (self->channel_duty == max_duty) {
         cfg.duty = 0;
         cfg.flags.output_invert = self->output_invert ^ 1;
-        PWM_DBG("cfg.duty=%d, cfg.flags.output_invert=%d", cfg.duty, cfg.flags.output_invert);
     }
     check_esp_err(ledc_channel_config(&cfg));
+
+    // reconfigure PWM output for Counter input
+    gpio_set_direction(self->pin, GPIO_MODE_INPUT_OUTPUT);
+    if (self->mode == LEDC_LOW_SPEED_MODE) {
+        esp_rom_gpio_connect_out_signal(self->pin, LEDC_LS_SIG_OUT0_IDX + self->channel, self->output_invert, false);
+    #if SOC_LEDC_SUPPORT_HS_MODE
+    } else if (self->mode == LEDC_HIGH_SPEED_MODE) {
+        esp_rom_gpio_connect_out_signal(self->pin, LEDC_HS_SIG_OUT0_IDX + self->channel, self->output_invert, false);
+    #endif
+    }
+    /*
+    test.py:
+    ```
+    import machine
+    pin = machine.Pin(17)
+    counter = machine.Counter(0, pin)  # must be first !!!
+    pwm = machine.PWM(pin)             # must be second !!!
+
+    print(pwm)
+    print(counter)
+    print("counter.value()=", counter.value())
+    print("counter.value()=", counter.value())
+    print("counter.value()=", counter.value())
+    print("counter.value()=", counter.value())
+    print("counter.value()=", counter.value())
+    print("counter.value()=", counter.value())
+    print("counter.value()=", counter.value())
+    ```
+
+    Output is:
+    PWM(Pin(17), freq=5000, duty_u16=32768)
+    Counter(0, src=Pin(17), direction=Counter.UP, edge=Counter.RISING, filter_ns=0)
+    counter.value()= 92
+    counter.value()= 94
+    counter.value()= 95
+    counter.value()= 95
+    counter.value()= 142
+    counter.value()= 142
+    counter.value()= 143
+    */
 }
 
 STATIC void pwm_is_active(machine_pwm_obj_t *self) {
@@ -463,10 +498,12 @@ STATIC void select_a_timer(machine_pwm_obj_t *self, int freq) {
         }
     }
     // If the timer is found, then bind and set the duty
-    if ((timer >= 0) && (timers[mode][timer].freq_hz != 0)
+    if ((timer >= 0)
+    && (timers[mode][timer].freq_hz != 0)
+    && (timers[mode][timer].freq_hz != freq)
     && (self->channel >= 0)
     && (self->mode >= 0)) {
-        // Bind the channel to the new timer
+        // Bind the channel to the timer
         self->mode = mode;
         self->timer = timer;
         check_esp_err(ledc_bind_channel_timer(self->mode, self->channel, self->timer));
@@ -631,10 +668,8 @@ STATIC void mp_machine_pwm_init_helper(machine_pwm_obj_t *self,
     || ((save_channel != self->channel))
     || ((save_timer != self->timer))) {
         configure_channel(self);
+        register_channel(self->mode, self->channel, self->pin, self->timer);
     }
-    register_channel(self->mode, self->channel, self->pin, self->timer);
-
-    self->active = true;
 }
 
 // This called from PWM() constructor
@@ -683,8 +718,11 @@ STATIC void mp_machine_pwm_deinit(machine_pwm_obj_t *self) {
 // Set and get methods of PWM class
 
 STATIC mp_obj_t mp_machine_pwm_freq_get(machine_pwm_obj_t *self) {
-    pwm_is_active(self);
-    return MP_OBJ_NEW_SMALL_INT(ledc_get_freq(self->mode, self->timer));
+    if (self->timer < 0) {
+        return MP_OBJ_NEW_SMALL_INT(0);
+    } else {
+        return MP_OBJ_NEW_SMALL_INT(ledc_get_freq(self->mode, self->timer));
+    }
 }
 
 STATIC void mp_machine_pwm_freq_set(machine_pwm_obj_t *self, mp_int_t freq) {
@@ -698,8 +736,11 @@ STATIC void mp_machine_pwm_freq_set(machine_pwm_obj_t *self, mp_int_t freq) {
 }
 
 STATIC mp_obj_t mp_machine_pwm_duty_get(machine_pwm_obj_t *self) {
-    pwm_is_active(self);
-    return MP_OBJ_NEW_SMALL_INT(get_duty_u10(self));
+    if (self->timer < 0) {
+        return MP_OBJ_NEW_SMALL_INT(0);
+    } else {
+        return MP_OBJ_NEW_SMALL_INT(get_duty_u10(self));
+    }
 }
 
 STATIC void mp_machine_pwm_duty_set(machine_pwm_obj_t *self, mp_int_t duty) {
@@ -708,8 +749,11 @@ STATIC void mp_machine_pwm_duty_set(machine_pwm_obj_t *self, mp_int_t duty) {
 }
 
 STATIC mp_obj_t mp_machine_pwm_duty_get_u16(machine_pwm_obj_t *self) {
-    pwm_is_active(self);
-    return MP_OBJ_NEW_SMALL_INT(get_duty_u16(self));
+    if (self->timer < 0) {
+        return MP_OBJ_NEW_SMALL_INT(0);
+    } else {
+        return MP_OBJ_NEW_SMALL_INT(get_duty_u16(self));
+    }
 }
 
 STATIC void mp_machine_pwm_duty_set_u16(machine_pwm_obj_t *self, mp_int_t duty) {
@@ -718,8 +762,11 @@ STATIC void mp_machine_pwm_duty_set_u16(machine_pwm_obj_t *self, mp_int_t duty) 
 }
 
 STATIC mp_obj_t mp_machine_pwm_duty_get_ns(machine_pwm_obj_t *self) {
-    pwm_is_active(self);
-    return MP_OBJ_NEW_SMALL_INT(get_duty_ns(self));
+    if (self->timer < 0) {
+        return MP_OBJ_NEW_SMALL_INT(0);
+    } else {
+        return MP_OBJ_NEW_SMALL_INT(get_duty_ns(self));
+    }
 }
 
 STATIC void mp_machine_pwm_duty_set_ns(machine_pwm_obj_t *self, mp_int_t duty) {
