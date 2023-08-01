@@ -176,6 +176,7 @@ STATIC void pwm_deinit(int mode, int channel) {
         if (pin >= 0) {
             // Mark it unused, and tell the hardware to stop routing
             check_esp_err(ledc_stop(mode, channel, 0));
+            /*
             // Disable ledc signal for the pin
             if (mode == LEDC_LOW_SPEED_MODE) {
                 esp_rom_gpio_connect_out_signal(pin, LEDC_LS_SIG_OUT0_IDX + channel, false, false);
@@ -186,6 +187,7 @@ STATIC void pwm_deinit(int mode, int channel) {
             }
             // reconfigure as GPIO
             //gpio_set_direction(pin, GPIO_MODE_INPUT_OUTPUT);
+            */
         }
         unregister_channel(mode, channel);
     }
