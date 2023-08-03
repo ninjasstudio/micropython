@@ -38,6 +38,11 @@
 #include "hal/timer_hal.h"
 #include "hal/timer_ll.h"
 #include "soc/timer_periph.h"
+#include "soc/soc_caps.h"
+
+#include "py/mpprint.h"
+//#define PWM_DBG(...)
+#define PWM_DBG(...) mp_printf(&mp_plat_print, __VA_ARGS__); mp_printf(&mp_plat_print, "\n");
 
 #define TIMER_DIVIDER  8
 
@@ -87,10 +92,48 @@ STATIC void machine_timer_print(const mp_print_t *print, mp_obj_t self_in, mp_pr
     mp_printf(print, "Timer(%u, mode=%q, period=%lu)", (self->group << 1) | self->index, mode, period);
 }
 
+STATIC bool find_free_unit(mp_int_t *group, mp_int_t *index) {
+/*
+    for (*group = 0; *group < SOC_TIMER_GROUPS; ++(*group)) {
+        for (*index = 0; *index < SOC_TIMER_GROUP_TIMERS_PER_GROUP; ++(*index)) {
+*/
+    for (*group = SOC_TIMER_GROUPS - 1; *group >= 0; --(*group)) {
+        for (*index = SOC_TIMER_GROUP_TIMERS_PER_GROUP - 1; *index >= 0; --(*index)) {
+            PWM_DBG("*group=%d, *index=%d", *group, *index);
+            bool free = true;
+            // Check whether the timer is already initialized, if so skip it
+            for (machine_timer_obj_t *t = MP_STATE_PORT(machine_timer_obj_head); t; t = t->next) {
+                PWM_DBG("t->group=%d, t->index=%d, t->hal_context=%d", t->group, t->index, t->hal_context);
+                if (t->group == *group && t->index == *index) {
+                    PWM_DBG("2 *group=%d, *index=%d", *group, *index);
+                    PWM_DBG("2 t->group=%d, t->index=%d", t->group, t->index);
+                    free = false;
+                    break;
+                }
+            }
+            if (free) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 STATIC mp_obj_t machine_timer_make_new(const mp_obj_type_t *type, size_t n_args, size_t n_kw, const mp_obj_t *args) {
     mp_arg_check_num(n_args, n_kw, 1, MP_OBJ_FUN_ARGS_MAX, true);
-    mp_uint_t group = (mp_obj_get_int(args[0]) >> 1) & 1;
-    mp_uint_t index = mp_obj_get_int(args[0]) & 1;
+    mp_int_t group = (mp_obj_get_int(args[0]) >> 1) & 1;
+    mp_int_t index = mp_obj_get_int(args[0]) & 1;
+
+    mp_int_t id = mp_obj_get_int(args[0]);
+    PWM_DBG("id=%d", id);
+    if (id == -2) {
+        if (!find_free_unit(&group, &index)) {
+            mp_raise_msg_varg(&mp_type_RuntimeError, MP_ERROR_TEXT("out of Timer units:%d"), SOC_TIMER_GROUP_TOTAL_TIMERS);
+        }
+    } else if ((id < 0) || (id > SOC_TIMER_GROUP_TOTAL_TIMERS)) {
+        mp_raise_msg_varg(&mp_type_ValueError, MP_ERROR_TEXT("id must be from 0 to %d"), SOC_TIMER_GROUP_TOTAL_TIMERS);
+
+    }
 
     machine_timer_obj_t *self = NULL;
 
@@ -110,6 +153,8 @@ STATIC mp_obj_t machine_timer_make_new(const mp_obj_type_t *type, size_t n_args,
         // Add the timer to the linked-list of timers
         self->next = MP_STATE_PORT(machine_timer_obj_head);
         MP_STATE_PORT(machine_timer_obj_head) = self;
+    } else {
+        mp_raise_msg(&mp_type_RuntimeError, MP_ERROR_TEXT("already used"));
     }
 
     if (n_args > 1 || n_kw > 0) {
