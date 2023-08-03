@@ -507,6 +507,15 @@ STATIC void mp_machine_Counter_init_helper(mp_pcnt_obj_t *self, size_t n_args, c
     check_esp_err(pcnt_counter_resume(self->unit));
 }
 
+STATIC int find_free_unit() {
+    for (int id = 0; id < PCNT_UNIT_MAX; ++id) {
+        if (!pcnts[id]) {
+            return id;
+        }
+    }
+    return -1;
+}
+
 STATIC void pcnt_init_new(mp_pcnt_obj_t *self, size_t n_args, const mp_obj_t *args) {
     self->aPinNumber = PCNT_PIN_NOT_USED;
     self->bPinNumber = PCNT_PIN_NOT_USED;
@@ -524,11 +533,17 @@ STATIC void pcnt_init_new(mp_pcnt_obj_t *self, size_t n_args, const mp_obj_t *ar
     self->handler_zero = MP_OBJ_NULL;
 
     self->unit = mp_obj_get_int(args[0]);
+    if (self->unit == -1) {
+        self->unit = find_free_unit();
+        if (self->unit < 0) {
+            mp_raise_msg_varg(&mp_type_RuntimeError, MP_ERROR_TEXT("out of PCNT units:%d"), PCNT_UNIT_MAX - 1);
+        }
+    }
     if ((self->unit < 0) || (self->unit >= PCNT_UNIT_MAX)) {
         mp_raise_msg_varg(&mp_type_ValueError, MP_ERROR_TEXT("id must be from 0 to %d"), PCNT_UNIT_MAX - 1);
     }
     if (pcnts[self->unit] != MP_OBJ_NULL) {
-        mp_raise_msg(&mp_type_Exception, MP_ERROR_TEXT("already used"));
+        mp_raise_msg(&mp_type_RuntimeError, MP_ERROR_TEXT("already used"));
     }
 
     if (n_args >= 2) {
