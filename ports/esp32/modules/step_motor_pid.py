@@ -15,7 +15,7 @@ class StepMotorPid(StepMotorBase):
         """ Constructor """
         super().__init__(name, pin_step, pin_dir, steps_per_rev, max_limit=max_limit, min_limit=min_limit)
 
-        self.angle_now = angle_now  # function
+        self.angle_now = angle_now  # external function
         self.pid = pid
 
         self.is_pulses = 0
@@ -84,8 +84,7 @@ class StepMotorPid(StepMotorBase):
             self.is_pulses = 1
         else:
             self.pwm.freq(self.step_frequency)
-            # self.pwm.duty_u16(32768)
-            self.pwm.duty(512)
+            self.pwm.duty_u16(32768)
 
     def stop_pulses(self):
         if self.pwm is not None:

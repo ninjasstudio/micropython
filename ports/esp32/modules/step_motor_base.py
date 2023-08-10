@@ -16,13 +16,13 @@ class StepBase():
         return round(self.steps_per_rev * angle / 360)
 
     def steps_to_angle(self, steps):
-        return steps * PI2 / self.steps_per_rev
+        return steps * 360 / self.steps_per_rev
 
     def radian_to_steps(self, angle):
         return round(self.steps_per_rev * angle / PI2)
 
     def steps_to_radian(self, steps):
-        return steps * 360 / self.steps_per_rev
+        return steps * PI2 / self.steps_per_rev
 
     def f_to_rps(self, f):  # rotates per second  # об/с
         return f / self.steps_per_rev

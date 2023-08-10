@@ -1,9 +1,11 @@
 # WiFi.py
 '''
 Время загрузки:
-Mikrotik mAP ~ 40-45c # 30с
+Mikrotik mAP ~ 35-45c
 Mikrotik RB953GS-5HnT(СРШ-5000) ~ 40c (без Mikrotik mAP)
 Mikrotik RB953GS-5HnT(СРШ-5000) ~ 60-70c (последовательно через Mikrotik mAP PoE)
+Mikrotik RBM33G(СРШ-5000) ~ 45c (без Mikrotik mAP)
+Mikrotik RBM33G(СРШ-5000) ~ 55c (последовательно через Mikrotik mAP PoE) 
 Mikrotik Drone ~ 45-60c
 ESP32 ~ 30-60c
 '''
@@ -130,8 +132,7 @@ def WiFi_login(ssid, password, ip="192.168.4.1", subnet="255.255.255.0", gateway
         # print("Connecting to network '{}'".format(ssid))
         # wlan.config(reconnects=10)
         if ip == 'dhcp':
-            #wlan.ifconfig(('dhcp'))
-            wlan.ifconfig('dhcp')
+            wlan.ifconfig(('dhcp'))
         else:
             wlan.ifconfig((ip, subnet, gateway, dns))
         if ssid is None:
@@ -192,7 +193,7 @@ def WiFi_start():
         DNS = config_WiFi.OWL_DNS
         del config_WiFi
         return WiFi_while(SSID, PASSWORD, IP, SUBNET, GATEWAY, DNS)
-    except BaseException as e:
+    except ImportError as e:
         #print(e)
         print_exception(e)
 
