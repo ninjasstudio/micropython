@@ -25,15 +25,11 @@ CONNECTING_PAUSE_S = 1  # seconds
 ATTEMPTS = 30  # ATTEMPTS * CONNECTING_PAUSE_S = 30 * 1 = 30s
 
 wlan_ap = WLAN(AP_IF)
-wlan_sta = WLAN(STA_IF)
-
-
-def WiFi_sta():
-    return WLAN(STA_IF)
+wlan_st = WLAN(STA_IF)
 
 
 def WiFi_sta_stop():
-    wlan = WiFi_sta()
+    wlan = WLAN(STA_IF)
     try:
         wlan.disconnect()
     except:
@@ -50,19 +46,19 @@ def save_config_WiFi(ssid, password, ifconfig):
     try:
         print("Save './config_WiFi.py'")
         with open("./config_WiFi.py", "w") as f:
-            f.write("SSID = '{}'\n".format(ssid))
-            f.write("PASSWORD = '{}'\n".format(password))
-            f.write("OWL_IP = '{}'\n".format(ifconfig[0]))
-            f.write("OWL_SUBNET = '{}'\n".format(ifconfig[1]))
-            f.write("OWL_GATEWAY = '{}'\n".format(ifconfig[2]))
-            f.write("OWL_DNS = '{}'\n".format(ifconfig[3]))
+            f.write(f"SSID = '{ssid}'\n")
+            f.write(f"PASSWORD = '{password}'\n")
+            f.write(f"OWL_IP = '{ifconfig[0]}'\n")
+            f.write(f"OWL_SUBNET = '{ifconfig[1]}'\n")
+            f.write(f"OWL_GATEWAY = '{ifconfig[2]}'\n")
+            f.write(f"OWL_DNS = '{ifconfig[3]}'\n")
             f.close()
     except BaseException as e:
         print_exception(e)
         print('Error writing config_WiFi.py')
 
 def WiFi_check_before(ssid, password, ip="192.168.4.1", subnet="255.255.255.0", gateway="192.168.4.1", dns="0.0.0.0"):
-    wlan = WiFi_sta()
+    wlan = WLAN(STA_IF)
     wlan.active(True)
     ifconfig = wlan.ifconfig()
     wlan_isconnected = wlan.isconnected()
@@ -72,19 +68,19 @@ def WiFi_check_before(ssid, password, ip="192.168.4.1", subnet="255.255.255.0", 
                 wlan.disconnect()
                 idle()  # save power while waiting
                 sleep_ms(200)
-            print("WiFi disconnected form SSID:{}".format(wlan.config('essid')))
+            print(f"WiFi disconnected form SSID:{wlan.config('essid')})")
             wlan_isconnected = False
         elif ifconfig != (ip, subnet, gateway, dns):
             while wlan.isconnected():
                 wlan.disconnect()
                 idle()  # save power while waiting
                 sleep_ms(200)
-            print("WiFi disconnected because:\n{} != \n{}".format(ifconfig, (ip, subnet, gateway, dns)))
+            print(f"WiFi disconnected because:\n{ifconfig} != \n{(ip, subnet, gateway, dns)})")
             wlan_isconnected = False
     return wlan_isconnected
 
 def WiFi_check_after(wlan_isconnected, ssid, password, ip="192.168.4.1", subnet="255.255.255.0", gateway="192.168.4.1", dns="0.0.0.0"):
-    wlan = WiFi_sta()
+    wlan = WLAN(STA_IF)
     wlan.active(True)
     if wlan.isconnected():
         wlan_ap.active(False)
@@ -104,7 +100,7 @@ def WiFi_check_after(wlan_isconnected, ssid, password, ip="192.168.4.1", subnet=
         if not wlan_isconnected:
             print()
             print('ESP mac:', hexlify(wlan.config('mac'), ':').decode("utf-8").upper())
-            print("Connected to WiFi '{}'".format(ssid))
+            print(f"Connected to WiFi '{ssid}'")
             print("wlan.ifconfig():", wlan.ifconfig())
             try:
                 print("wlan.status('rssi')", rssi(wlan.status('rssi')))
@@ -125,11 +121,11 @@ def WiFi_check_after(wlan_isconnected, ssid, password, ip="192.168.4.1", subnet=
             save_config_WiFi(ssid, password, ifconfig)
     
 def WiFi_login(ssid, password, ip="192.168.4.1", subnet="255.255.255.0", gateway="192.168.4.1", dns="0.0.0.0"):
-    """ Enable station interface and connect to WiFi access point """
-    wlan = WiFi_sta()
+    # Enable station interface and connect to WiFi access point
+    wlan = WLAN(STA_IF)
     wlan.active(True)
     if not wlan.isconnected():
-        # print("Connecting to network '{}'".format(ssid))
+        # print("Connecting to network '{ssid}'")
         # wlan.config(reconnects=10)
         if ip == 'dhcp':
             wlan.ifconfig(('dhcp'))
@@ -151,15 +147,16 @@ def WiFi_while(ssid, password, ip="192.168.4.1", subnet="255.255.255.0", gateway
     wlan_isconnected = WiFi_check_before(ssid, password, ip, subnet, gateway, dns)
     i = 0
     t = 0
-    wlan = WiFi_sta()
+    wlan = WLAN(STA_IF)
     while (wlan.status() != 1010) and (i < ATTEMPTS):
         if ticks_diff(ticks_ms(), t) > CONNECTING_PAUSE_S * 1000:
             i += 1
             print()
-            print("Connecting to network '{}'".format(ssid))
-            print("ifconfig:", (ip, subnet, gateway, dns))
+            print(f"Connecting to network '{ssid}'")
+            #print("ifconfig:", (ip, subnet, gateway, dns))
+            print("ifconfig:", wlan.ifconfig())
             print("wlan.status():", wlan_status(wlan.status()), end ='')
-            print(" : WiFi connecting timeout is {} seconds, attempt {} of {}.".format(CONNECTING_PAUSE_S, i, ATTEMPTS))
+            print(f" : WiFi connecting timeout is {CONNECTING_PAUSE_S} seconds, attempt {i} of {ATTEMPTS}.)")
             t = ticks_ms()
             
             WiFi_login(ssid, password, ip, subnet, gateway, dns)
@@ -171,18 +168,18 @@ def WiFi_while(ssid, password, ip="192.168.4.1", subnet="255.255.255.0", gateway
         
     if not wlan.isconnected():
         wlan.active(False)  # перестраховка
-        print("Can not connect to the WiFi '{}'".format(ssid))
+        print(f"Can not connect to the WiFi '{ssid}'")
         wlan = wlan_ap
         wlan.active(True)
         #wlan_ap.config(essid=ap_ssid, password=ap_password, authmode=ap_authmode)
         ssid = wlan.config('essid')
-        print("Starting as access point '{}'".format(ssid))
+        print(f"Starting as access point '{ssid}'")
         # wait_connection(ssid)
     
     return wlan
 
 def WiFi_start():
-    """ Set login parameter here """
+    # Set login parameter here
     try:
         import config_WiFi
         SSID = config_WiFi.SSID
@@ -210,13 +207,13 @@ def host(host=""):
 # ===============================================================================
 if __name__ == "__main__":
     print("WiFi:")
-    print('AP: active()={}, isconnected()={}, status={}, ifconfig={}'.format(wlan_ap.active(), wlan_ap.isconnected(), wlan_status(wlan_ap.status()), wlan_ap.ifconfig()))
-    print('STA: active()={}, isconnected()={}, status={}, ifconfig={}'.format(wlan_sta.active(), wlan_sta.isconnected(), wlan_status(wlan_sta.status()), wlan_sta.ifconfig()))
+    print(f'AP: active()={wlan_ap.active()}, isconnected()={wlan_ap.isconnected()}, status={wlan_status(wlan_ap.status())}, ifconfig={wlan_ap.ifconfig()}')
+    print(f'STA: active()={wlan_st.active()}, isconnected()={wlan_st.isconnected()}, status={wlan_status(wlan_st.status())}, ifconfig={wlan_st.ifconfig()}')
     
     #wlan = WiFi_sta_stop()
     
     wlan = WiFi_start()
-    if wlan_sta.active():
+    if wlan_st.active():
         print()
         print("WiFi scan()...")
         wireless_networks = wlan.scan()
@@ -224,5 +221,5 @@ if __name__ == "__main__":
             print("wlan.scan(): (ssid, bssid, channel, rssi(dBm), authmode, hidden)")
         for e in wireless_networks:
             print(e, end='')
-            print("| RSSI={}dBm:{} | authmode={}".format(e[3], rssi(e[3]), authmode(e[4])))
-            #print("| bssid='{}' | RSSI={}dBm:{} | authmode={}".format(hexlify(e[1]).decode("utf-8"), e[3], rssi(e[3]), authmode(e[4])))
+            print(f"| RSSI={e[3]}dBm:{rssi(e[3])} | authmode={authmode(e[4])}")
+            print(f"| bssid='{e[1]).decode("utf-8")}' | RSSI={hexlify(e[3]}dBm:{rssi(e[3])} | authmode={authmode(e[4])}")

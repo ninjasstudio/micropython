@@ -1,6 +1,5 @@
 class Coordinate():
     def __init__(self, mover, max_search=180, min_search=-180):
-        """ Constructor """
         self.mover = mover
         # self.circle_diagram = [0 for i in range(360)]
         self.circle_diagram = 0  # {ros_param: [0 for i in range(int(360/angle_resolution))] for ros_param in ros_params}
@@ -25,7 +24,6 @@ class Coordinate():
         self.value_minus = {}  # значение в конце поиска в "отрицательном" направлении
 
         self.angle_best = None
-        self.value_best = {}  # лучшее значение в процессе поиска
         self.avg_best = {}  # среднее значение в лучшей позиции
 
         self.angle_bisector_diff = None  #  угол посередине участка плато
@@ -38,6 +36,9 @@ class Coordinate():
 
         self.max_search = max_search  # сектор поиска заданный оператором должен быть уже, чем физические механические ограничения конструкции
         self.min_search = min_search
+
+    def __repr__(self):
+        return f"Coordinate({super().__repr__()}, max_search={self.max_search}, min_search={self.min_search})"
 
     def correct_handler(self, delta_angle):
         def to180(a):
@@ -64,7 +65,7 @@ class Coordinate():
 
     # -----------------------------------------------------------------------
     def on_correct(self, handler):
-        """ Set correction handler """
+        # Set correction handler
         self._on_correct_handler = handler
 
     def correct_angles(self, delta_angle):
@@ -85,17 +86,22 @@ class Coordinate():
 
 class CoordinateShow(Coordinate):
     def __init__(self, mover, max_search=180, min_search=-180):
-        """ Constructor """
         super().__init__(mover, max_search, min_search)
 
     @property
-    def target(self):
-        return self.mover.target
+    def angle_target(self):
+        #print(f'{self.mover.name} CoordinateShow():angle_target.property')
+        return self.mover.angle_target
 
-    @target.setter
-    def target(self, to_angle):
-        self.mover.target = to_angle
-        if self.search_dir > 0:
-            print('+++', self.mover.name, to_angle)
-        else:
-            print('---', self.mover.name, to_angle)
+    @angle_target.setter
+    def angle_target(self, angle_target):
+        #print(f'{self.mover.name} CoordinateShow():angle_target.setter')
+        #print(f'{self.mover.name} CoordinateShow():angle_target.setter self.mover.angle_target={self.mover.angle_target} self.max_search={self.max_search}')
+        if self.mover.angle_target != angle_target:
+            self.mover.angle_target = max(min(angle_target, self.max_search), self.min_search)
+#             if self.mover.angle_now < self.mover.angle_target:
+#                 print('+++', self.mover.name, self.mover.angle_target)
+#             else:
+#                 print('---', self.mover.name, self.mover.angle_target)
+            #print(f'self.mover={self.mover}')
+            #print(f'{self.mover.name} CoordinateShow():angle_target.setter self.mover.angle_target={self.mover.angle_target} self.max_search={self.max_search}')

@@ -40,7 +40,7 @@ def _cutoffs(value, cutoffs):
 
 
 class PID(object):
-    """A simple PID controller."""
+    # A simple PID controller.
 
     # yapf: disable
     def __init__(
@@ -236,12 +236,12 @@ class PID(object):
 
     @property
     def tunings(self):
-        """The tunings used by the controller as a tuple: (Kp, Ki, Kd)."""
+        # The tunings used by the controller as a tuple: (Kp, Ki, Kd).
         return self.Kp, self.Ki, self.Kd
 
     @tunings.setter
     def tunings(self, tunings):
-        """Set the PID tunings."""
+        # Set the PID tunings.
         kP, kI, kD = tunings
         assert kP >= 0 and kI >= 0 and kD >= 0
         if self.direction == -1:
@@ -252,13 +252,13 @@ class PID(object):
     @property
     @micropython.native
     def auto_mode(self):
-        """Whether the controller is currently enabled (in auto mode) or not."""
+        # Whether the controller is currently enabled (in auto mode) or not.
         return self._auto_mode
 
     @auto_mode.setter
     @micropython.native
     def auto_mode(self, enabled):
-        """Enable or disable the PID controller."""
+        # Enable or disable the PID controller.
         self.set_auto_mode(enabled)
 
     def set_auto_mode(self, enabled, last_output=None):
@@ -308,7 +308,7 @@ class PID(object):
     @output_limits.setter
     @micropython.native
     def output_limits(self, limits):
-        """Set the output limits."""
+        # Set the output limits.
         if limits is None:
             self._min_output, self._max_output = None, None
             return
@@ -342,7 +342,7 @@ class PID(object):
 
     @micropython.native
     def setDirection(self, direction):
-        """    # Set direction """
+        # Set direction
         assert (direction == -1) or (direction == 1)
         if direction != self.direction:
             self.kP = -self.kP

@@ -33,7 +33,6 @@ _arg_regexp = compile(b"^[A-Z]+\\s+(/[-a-zA-Z0-9_.\?\&\=%+\(\[,\]\)]*)")
 
 class MicroPyServer(object):
     def __init__(self, host="", port=80, cargo=None):
-        """ Constructor """
         self.host = host
         self.port = port
 
@@ -68,11 +67,10 @@ class MicroPyServer(object):
         self.empty_out_buf()
 
     def __del__(self):
-        """ Destructor """  # Special method __del__ not implemented for user-defined classes in MicroPython !!!
         self.end()
 
     def find_route(self, request):
-        """ Find route """
+        # Find route
         line0 = request.split(b"\r\n")[0]
         method = _method_regexp.search(line0).group(1)
         path = _path_regexp.search(line0).group(1)
@@ -84,11 +82,11 @@ class MicroPyServer(object):
             return None, arg
 
     def find_route_txt(self, path):
-        """ Find route txt """
+        # Find route txt
         return self._routes[path + b'\x00GET']
 
     def begin(self):
-        """ Call it before the main loop """
+        # Call it before the main loop
         try:
             self._socket = open_server_socket(self.host, self.port, backlog=_BACKLOG)
             print("{}:{} MicroPyServer started".format(self.host, self.port))
@@ -175,7 +173,7 @@ class MicroPyServer(object):
                         self.connect_close()
 
     def execute(self):
-        """ Call it in the main loop """
+        # Call it in the main loop
         if self._socket is None:
             if self.begin() is None:
                 return
@@ -203,7 +201,7 @@ class MicroPyServer(object):
         self.send(True)
 
     def add_route(self, path, handler, method="GET"):
-        """ Add new route  """
+        # Add new route 
         self._routes.update({path.encode() + b'\x00' + method.encode(): handler})
 
     def connection_send(self, buf):
@@ -219,7 +217,7 @@ class MicroPyServer(object):
         }
 
     def out(self, response, status=200, content_type="Content-Type: text/html", extra_headers=None):
-        """ Send response to client """
+        # Send response to client
         '''
         ### speed optimized 
         self.connection_send("HTTP/1.0 {:d} {:s}\r\n{:s}\r\n".format(status, self.status_message[status], content_type))
@@ -238,11 +236,11 @@ class MicroPyServer(object):
         self.connection_send(response)
 
     def not_found(self):
-        """ Not found action """
+        # Not found action
         self.out("404", status=404, content_type="Content-Type: text/plain")
 
     def internal_error(self, error):
-        """ Catch error action """
+        # Catch error action
         output = StringIO()
         #print_exception(error, output)
         str_error = output.getvalue()
@@ -253,11 +251,11 @@ class MicroPyServer(object):
             pass
 
     #def on_request(self, handler):
-    #    """ Set request handler """
+    #    # Set request handler
     #    self._on_request_handler = handler
 
     def execute_txt(self):
-        """ Call it in the main loop """
+        # Call it in the main loop
         if self._socket is None:
             if self.begin() is None:
                 return

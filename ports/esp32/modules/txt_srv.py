@@ -9,7 +9,7 @@ def owl_id(server, owl):
 
 def owl_angle(server, owl):
     s = str(owl.mode) + '-' + str(owl.azim.state) + '-' + str(owl.elev.state) + '-' + str(owl.corr.state) + '-' + str(owl.state) + '-' + str(owl.сounter)
-    return dumps((s, round(owl.azim.mover.angle_now(), 1), round(owl.elev.mover.angle_now(), 1), owl.ROUTEROS_IP, owl.RADIO_NAME, round(owl.azim.mover.angle_target, 1), round(owl.elev.mover.angle_target, 1), owl.value_now, owl.SSID)) + '\n'  #, owl.filter_avg()
+    return dumps((s, round(owl.azim.mover.angle_now, 1), round(owl.elev.mover.angle_now, 1), owl.ROUTEROS_IP, owl.RADIO_NAME, round(owl.azim.angle_target, 1), round(owl.elev.angle_target, 1), owl.value_now, owl.SSID)) + '\n'  #, owl.filter_avg()
 
 
 def _owl_pid(mover, pid):

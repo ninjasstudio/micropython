@@ -19,9 +19,7 @@
 # SOFTWARE.
 
 # https://github.com/tuupola/micropython-mpu9250
-"""
-MicroPython I2C driver for MPU6500 6-axis motion tracking device
-"""
+# MicroPython I2C driver for MPU6500 6-axis motion tracking device
 
 __version__ = "0.3.0"
 
@@ -98,7 +96,7 @@ SF_RAD_S = 0.017453292519943  # 1 deg/s is 0.017453292519943 rad/s
 
 
 class MPU6500:
-    """Class which provides interface to MPU6500 6-axis motion tracking device."""
+    # Class which provides interface to MPU6500 6-axis motion tracking device.
     def __init__(
         self,
         i2c,
@@ -129,12 +127,10 @@ class MPU6500:
 
     @property
     def acceleration(self):
-        """
-        Acceleration measured by the sensor. By default will return a
-        3-tuple of X, Y, Z axis acceleration values in m/s^2 as floats. Will
-        return values in g if constructor was provided `accel_sf=SF_M_S2`
-        parameter.
-        """
+        # Acceleration measured by the sensor. By default will return a
+        # 3-tuple of X, Y, Z axis acceleration values in m/s^2 as floats. Will
+        # return values in g if constructor was provided `accel_sf=SF_M_S2`
+        # parameter.
         so = self._accel_so
         sf = self._accel_sf
 
@@ -143,9 +139,7 @@ class MPU6500:
 
     @property
     def gyro(self):
-        """
-        X, Y, Z radians per second as floats.
-        """
+        # X, Y, Z radians per second as floats.
         so = self._gyro_so
         sf = self._gyro_sf
         ox, oy, oz = self._gyro_offset
@@ -161,15 +155,13 @@ class MPU6500:
 
     @property
     def temperature(self):
-        """
-        Die temperature in celcius as a float.
-        """
+        # Die temperature in celcius as a float.
         temp = self._register_short(_TEMP_OUT_H)
         return ((temp - _TEMP_OFFSET) / _TEMP_SO) + _TEMP_OFFSET
 
     @property
     def whoami(self):
-        """ Value of the whoami register. """
+        # Value of the whoami register.
         return self._register_char(_WHO_AM_I)
 
     def calibrate(self, count=256, delay=0):

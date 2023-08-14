@@ -1,24 +1,22 @@
-from gc import collect
-
-collect()
 from network import AUTH_OPEN, AUTH_WEP, AUTH_WPA_PSK, AUTH_WPA2_PSK, AUTH_WPA_WPA2_PSK, \
+    AUTH_WPA2_ENTERPRISE, AUTH_WPA3_PSK, AUTH_WPA2_WPA3_PSK, AUTH_WAPI_PSK, AUTH_OWE, \
     STAT_IDLE, STAT_CONNECTING, STAT_GOT_IP, \
-    STAT_BEACON_TIMEOUT, STAT_NO_AP_FOUND, STAT_WRONG_PASSWORD, STAT_ASSOC_FAIL, STAT_HANDSHAKE_TIMEOUT
+    STAT_BEACON_TIMEOUT, STAT_NO_AP_FOUND, STAT_WRONG_PASSWORD, STAT_ASSOC_FAIL, STAT_HANDSHAKE_TIMEOUT, \
+    STAT_CONNECTION_FAIL, STAT_AP_TSF_RESET, STAT_ROAMING, STAT_ASSOC_COMEBACK_TIME_TOO_LONG, STAT_SA_QUERY_TIMEOUT
 
-collect()
 
 # wlan.scan() authmode messages are:
 _AUTHMODE = {
-    AUTH_OPEN: "OPEN",  # 0
-    AUTH_WEP: "WEP",  # 1
-    AUTH_WPA_PSK: "WPA-PSK",  # 2
-    AUTH_WPA2_PSK: "WPA2-PSK",  # 3
-    AUTH_WPA_WPA2_PSK: "WPA/WPA2-PSK",  # 4
-    5: "WPA2-ENTERPRISE",  # 5
-    6: "WPA3-PSK",  # 6
-    7: "WPA2/WPA3-PSK",  # 7
-    # WPA3-192-???
-    # OWE-???
+    AUTH_OPEN: "OPEN",
+    AUTH_WEP: "WEP",
+    AUTH_WPA_PSK: "WPA-PSK",
+    AUTH_WPA2_PSK: "WPA2-PSK",
+    AUTH_WPA_WPA2_PSK: "WPA/WPA2-PSK",
+    AUTH_WPA2_ENTERPRISE: "WPA2-ENTERPRISE",
+    AUTH_WPA3_PSK: "WPA3-PSK",
+    AUTH_WPA2_WPA3_PSK: "WPA2/WPA3-PSK",
+    AUTH_WAPI_PSK: "AUTH_WAPI_PSK",
+    AUTH_OWE: "AUTH_OWE",
     }
 
 
@@ -79,13 +77,13 @@ def rssi(dBm: int):
 
 
 '''
--30 dBm – (Amazing)    Maximum signal strength, you are probably standing right next to the access point.
--50 dBm – (Excellent)  Anything down to this level can be considered excellent signal strength.
--60 dBm – (Good)       Good, reliable signal strength.
-–67 dBm – (Reliable)   Reliable signal strength. The minimum for any service depending on a reliable connection and signal strength, such as voice over Wi-Fi and non-HD video streaming. 
--70 dBm – (Fair)       Not a strong signal. Light browsing and email.
--80 dBm – (Unreliable) Unreliable signal strength, will not suffice for most services. Connecting to the network.
--90 dBm – (Unusable)   The chances of even connecting are very low at this level.
+-30 dBm - (Amazing)    Maximum signal strength, you are probably standing right next to the access point.
+-50 dBm - (Excellent)  Anything down to this level can be considered excellent signal strength.
+-60 dBm - (Good)       Good, reliable signal strength.
+-67 dBm - (Reliable)   Reliable signal strength. The minimum for any service depending on a reliable connection and signal strength, such as voice over Wi-Fi and non-HD video streaming.
+-70 dBm - (Fair)       Not a strong signal. Light browsing and email.
+-80 dBm - (Unreliable) Unreliable signal strength, will not suffice for most services. Connecting to the network.
+-90 dBm - (Unusable)   The chances of even connecting are very low at this level.
 ###
 RSSI(dBm):
        0..-50 (Excellent, Отлично), зеленый
