@@ -47,6 +47,9 @@ See also
 https://github.com/espressif/esp-idf/tree/master/examples/peripherals/pcnt/rotary_encoder
 */
 
+// #define DBG(...)
+#define DBG(...) mp_printf(&mp_plat_print, __VA_ARGS__); mp_printf(&mp_plat_print, "\n");
+
 #include "py/mpprint.h"
 #include "py/runtime.h"
 #include "mphalport.h"
@@ -103,6 +106,12 @@ STATIC void IRAM_ATTR pcnt_intr_handler(void *arg) {
                 self->status = 0;
                 if (PCNT.status_unit[id].THRES1_LAT) {
                     if (self->counter == self->counter_match1) {
+                        /*
+                        int16_t count;
+                        pcnt_get_counter_value(self->unit, &count);
+                        self->counter += count;
+                        pcnt_counter_clear(self->unit);
+                        */
                         self->status |= EVT_THRES_1;
                         mp_sched_schedule(self->handler_match1, MP_OBJ_FROM_PTR(self));
                         mp_hal_wake_main_task_from_isr();
@@ -110,6 +119,12 @@ STATIC void IRAM_ATTR pcnt_intr_handler(void *arg) {
                 }
                 if (PCNT.status_unit[id].THRES0_LAT) {
                     if (self->counter == self->counter_match2) {
+                        /*
+                        int16_t count;
+                        pcnt_get_counter_value(self->unit, &count);
+                        self->counter += count;
+                        pcnt_counter_clear(self->unit);
+                        */
                         self->status |= EVT_THRES_0;
                         mp_sched_schedule(self->handler_match2, MP_OBJ_FROM_PTR(self));
                         mp_hal_wake_main_task_from_isr();
@@ -344,12 +359,20 @@ STATIC mp_obj_t machine_PCNT_irq(size_t n_pos_args, const mp_obj_t *pos_args, mp
     } else {
         if (trigger & EVT_THRES_1) {
             if (args[ARG_value].u_obj != MP_OBJ_NULL) {
+
+                int16_t count;
+                pcnt_get_counter_value(self->unit, &count);
+                self->counter += count;
+                DBG("self->counter=%d, count=%d", self->counter, count);
+                pcnt_counter_clear(self->unit);
+
                 self->match1 = GET_INT(args[ARG_value].u_obj);
                 #ifdef USE_INT64
                 self->counter_match1 = remainder_of_division(self->match1, INT16_ROLL);
                 #else
                 self->counter_match1 = self->match1 % INT16_ROLL;
                 #endif
+                DBG("self->match1=%d, self->counter_match1=%d", self->match1, self->counter_match1);
                 check_esp_err(pcnt_set_event_value(self->unit, EVT_THRES_1, (int16_t)self->counter_match1));
                 self->counter_match1 = self->match1 - self->counter_match1;
             }
@@ -358,12 +381,19 @@ STATIC mp_obj_t machine_PCNT_irq(size_t n_pos_args, const mp_obj_t *pos_args, mp
         }
         if (trigger & EVT_THRES_0) {
             if (args[ARG_value].u_obj != MP_OBJ_NULL) {
+
+                int16_t count;
+                pcnt_get_counter_value(self->unit, &count);
+                self->counter += count;
+                pcnt_counter_clear(self->unit);
+
                 self->match2 = GET_INT(args[ARG_value].u_obj);
                 #ifdef USE_INT64
                 self->counter_match2 = remainder_of_division(self->match2, INT16_ROLL);
                 #else
                 self->counter_match2 = self->match2 % INT16_ROLL;
                 #endif
+                DBG("self->match2=%d, self->counter_match2=%d", self->match2, self->counter_match2);
                 check_esp_err(pcnt_set_event_value(self->unit, EVT_THRES_0, (int16_t)self->counter_match2));
                 self->counter_match2 = self->match2 - self->counter_match2;
             }
