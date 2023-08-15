@@ -363,7 +363,7 @@ STATIC mp_obj_t machine_PCNT_irq(size_t n_pos_args, const mp_obj_t *pos_args, mp
                 int16_t count;
                 pcnt_get_counter_value(self->unit, &count);
                 self->counter += count;
-                DBG("self->counter=%d, count=%d", self->counter, count);
+                DBG("irq() self->counter=%d, count=%d", self->counter, count);
                 pcnt_counter_clear(self->unit);
 
                 self->match1 = GET_INT(args[ARG_value].u_obj);
@@ -594,6 +594,9 @@ STATIC void common_print_kw(const mp_print_t *print, mp_pcnt_obj_t *self) {
     }
     if (self->handler_match2 != MP_OBJ_NULL) {
         mp_printf(print, ", match2=%ld", self->match2);
+    }
+    if (self->handler_zero != MP_OBJ_NULL) {
+        mp_printf(print, ", match=0");
     }
     mp_printf(print, ", filter_ns=%d)", filter_to_ns(self->filter));
 }
