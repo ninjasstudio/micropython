@@ -370,28 +370,26 @@ STATIC mp_obj_t machine_PCNT_irq(size_t n_pos_args, const mp_obj_t *pos_args, mp
     } else {
         if (trigger & PCNT_EVT_THRES_1) {
             if (args[ARG_value].u_obj != MP_OBJ_NULL) {
-
+                self->match1 = GET_INT(args[ARG_value].u_obj);
                 int16_t count;
                 pcnt_get_counter_value(self->unit, &count);
                 self->counter += count;
                 DBG("irq() self->counter=%d, count=%d", self->counter, count);
-                pcnt_counter_clear(self->unit);
 
-                self->match1 = GET_INT(args[ARG_value].u_obj);
                 #ifdef USE_INT64
-                counter_t counter_match1 = remainder_of_division(self->match1, INT16_ROLL);
+                counter_t counter_match = remainder_of_division(self->match1, INT16_ROLL);
                 #else
-                counter_t counter_match1 = self->match1 % INT16_ROLL;
+                counter_t counter_match = self->match1 % INT16_ROLL;
                 #endif
-                check_esp_err(pcnt_set_event_value(self->unit, PCNT_EVT_THRES_1, (int16_t)counter_match1));
-                check_esp_err(pcnt_set_event_value(self->unit, PCNT_EVT_THRES_0, (int16_t)(-INT16_ROLL + counter_match1)));
+                check_esp_err(pcnt_set_event_value(self->unit, PCNT_EVT_THRES_1, (int16_t)counter_match));
+                check_esp_err(pcnt_set_event_value(self->unit, PCNT_EVT_THRES_0, (int16_t)(-INT16_ROLL + counter_match)));
+
+                pcnt_counter_clear(self->unit);
 
                 check_esp_err(pcnt_get_event_value(self->unit, PCNT_EVT_THRES_1, &count));
                 DBG("self->match1=%d, PCNT_EVT_THRES_1 match=%d", self->match1, count);
                 check_esp_err(pcnt_get_event_value(self->unit, PCNT_EVT_THRES_0, &count));
                 DBG("self->match1=%d, PCNT_EVT_THRES_0 match=%d", self->match1, count);
-
-                //self->counter_match1 = self->match1 - self->counter_match1;
             }
             self->handler_match1 = handler;
             pcnt_event_enable(self->unit, PCNT_EVT_THRES_1);
@@ -399,21 +397,19 @@ STATIC mp_obj_t machine_PCNT_irq(size_t n_pos_args, const mp_obj_t *pos_args, mp
         }
         if (trigger & PCNT_EVT_THRES_0) {
             if (args[ARG_value].u_obj != MP_OBJ_NULL) {
+                self->match2 = GET_INT(args[ARG_value].u_obj);
+                #ifdef USE_INT64
+                counter_t counter_match = remainder_of_division(self->match2, INT16_ROLL);
+                #else
+                counter_t counter_match = self->match2 % INT16_ROLL;
+                #endif
+                DBG("self->match2=%d, counter_match2=%d", self->match2, counter_match);
+                check_esp_err(pcnt_set_event_value(self->unit, PCNT_EVT_THRES_0, (int16_t)counter_match));
 
                 int16_t count;
                 pcnt_get_counter_value(self->unit, &count);
                 self->counter += count;
                 pcnt_counter_clear(self->unit);
-
-                self->match2 = GET_INT(args[ARG_value].u_obj);
-                #ifdef USE_INT64
-                counter_t counter_match2 = remainder_of_division(self->match2, INT16_ROLL);
-                #else
-                counter_t counter_match2 = self->match2 % INT16_ROLL;
-                #endif
-                DBG("self->match2=%d, counter_match2=%d", self->match2, counter_match2);
-                check_esp_err(pcnt_set_event_value(self->unit, PCNT_EVT_THRES_0, (int16_t)counter_match2));
-                //self->counter_match2 = self->match2 - self->counter_match2;
             }
             self->handler_match2 = handler;
             pcnt_event_enable(self->unit, PCNT_EVT_THRES_0);
@@ -565,8 +561,6 @@ STATIC void pcnt_init_new(mp_pcnt_obj_t *self, size_t n_args, const mp_obj_t *ar
     self->status = 0;
     self->match1 = 0;
     self->match2 = 0;
-    //self->counter_match1 = 0;
-    //self->counter_match2 = 0;
     self->handler_match1 = MP_OBJ_NULL;
     self->handler_match2 = MP_OBJ_NULL;
     self->handler_zero = MP_OBJ_NULL;
