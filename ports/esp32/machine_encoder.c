@@ -47,8 +47,8 @@ See also
 https://github.com/espressif/esp-idf/tree/master/examples/peripherals/pcnt/rotary_encoder
 */
 
-// #define DBG(...)
-#define DBG(...) mp_printf(&mp_plat_print, __VA_ARGS__); mp_printf(&mp_plat_print, "\n");
+#define DBG(...)
+//#define DBG(...) mp_printf(&mp_plat_print, __VA_ARGS__); mp_printf(&mp_plat_print, "\n");
 
 #include "py/mpprint.h"
 #include "py/runtime.h"
@@ -355,7 +355,7 @@ STATIC mp_obj_t machine_PCNT_irq(size_t n_pos_args, const mp_obj_t *pos_args, mp
     } else {
         if (trigger & PCNT_EVT_THRES_1) {
             if (args[ARG_value].u_obj != MP_OBJ_NULL) {
-                match1 =  = GET_INT(args[ARG_value].u_obj)
+                counter_t match1 = GET_INT(args[ARG_value].u_obj);
                 if (self->match1 != match1) {
                     self->match1 = match1;
                     pcnt_event_disable(self->unit, PCNT_EVT_THRES_1);
