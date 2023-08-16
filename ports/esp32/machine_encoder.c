@@ -449,7 +449,7 @@ STATIC void mp_machine_Counter_init_helper(mp_pcnt_obj_t *self, size_t n_args, c
     } else {
         self->x124 = 0;
         if (direction != MP_OBJ_NULL) {
-            if (mp_obj_is_type(direction, &machine_pin_type)) {
+            if (mp_obj_is_type(direction, &machine_pin_type) || mp_obj_is_small_int(direction)) {
                 self->bPinNumber = pin_or_int(direction);
             } else {
                 self->bPinNumber = mp_obj_get_int(direction);
