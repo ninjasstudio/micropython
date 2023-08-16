@@ -31,8 +31,6 @@ typedef struct _mp_pcnt_obj_t {
 
     counter_t match1;
     counter_t match2;
-    counter_t counter_match1;
-    counter_t counter_match2;
     mp_obj_t handler_match1;
     mp_obj_t handler_match2;
     mp_obj_t handler_zero;
