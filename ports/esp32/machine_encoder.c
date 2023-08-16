@@ -198,6 +198,7 @@ STATIC void pcnt_disable_events(mp_pcnt_obj_t *self) {
     }
     if (self->handler_match1 != MP_OBJ_NULL) {
         check_esp_err(pcnt_event_disable(self->unit, PCNT_EVT_THRES_1));
+        check_esp_err(pcnt_event_disable(self->unit, PCNT_EVT_THRES_0));
         self->handler_match1 = MP_OBJ_NULL;
     }
     if (self->handler_zero != MP_OBJ_NULL) {
@@ -327,7 +328,8 @@ STATIC mp_obj_t machine_PCNT_irq(size_t n_pos_args, const mp_obj_t *pos_args, mp
     enum { ARG_handler, ARG_trigger, ARG_value };
     static const mp_arg_t allowed_args[] = {
         { MP_QSTR_handler, MP_ARG_OBJ, {.u_obj = mp_const_none} },
-        { MP_QSTR_trigger, MP_ARG_INT, {.u_int = PCNT_EVT_THRES_0 | PCNT_EVT_THRES_1 | PCNT_EVT_ZERO} },
+//      { MP_QSTR_trigger, MP_ARG_INT, {.u_int = PCNT_EVT_THRES_0 | PCNT_EVT_THRES_1 | PCNT_EVT_ZERO} },
+        { MP_QSTR_trigger, MP_ARG_INT, {.u_int = PCNT_EVT_THRES_1 | PCNT_EVT_ZERO} },
         { MP_QSTR_value, MP_ARG_OBJ, {.u_obj = MP_OBJ_NULL} },
     };
 
@@ -338,13 +340,14 @@ STATIC mp_obj_t machine_PCNT_irq(size_t n_pos_args, const mp_obj_t *pos_args, mp
     mp_obj_t handler = args[ARG_handler].u_obj;
     mp_uint_t trigger = args[ARG_trigger].u_int;
 
-    if (trigger & ~(PCNT_EVT_THRES_1 | PCNT_EVT_THRES_0 | PCNT_EVT_ZERO)) {
+    if (trigger & ~(PCNT_EVT_THRES_1 | PCNT_EVT_ZERO)) {
         mp_raise_ValueError(MP_ERROR_TEXT("trigger"));
     }
 
     if (handler == mp_const_none) {
         if (trigger & PCNT_EVT_THRES_1) {
             pcnt_event_disable(self->unit, PCNT_EVT_THRES_1);
+            pcnt_event_disable(self->unit, PCNT_EVT_THRES_0);
         }
         if (trigger & PCNT_EVT_THRES_0) {
             pcnt_event_disable(self->unit, PCNT_EVT_THRES_0);
@@ -633,11 +636,15 @@ STATIC void machine_Counter_print(const mp_print_t *print, mp_obj_t self_obj, mp
     { MP_ROM_QSTR(MP_QSTR_id), MP_ROM_PTR(&machine_PCNT_id_obj) }, \
     { MP_ROM_QSTR(MP_QSTR_status), MP_ROM_PTR(&machine_PCNT_status_obj) }, \
     { MP_ROM_QSTR(MP_QSTR_irq), MP_ROM_PTR(&machine_PCNT_irq_obj) }
-
+/*
 #define COMMON_CONSTANTS \
     { MP_ROM_QSTR(MP_QSTR_IRQ_ZERO), MP_ROM_INT(PCNT_EVT_ZERO) }, \
     { MP_ROM_QSTR(MP_QSTR_IRQ_MATCH1), MP_ROM_INT(PCNT_EVT_THRES_1) }, \
     { MP_ROM_QSTR(MP_QSTR_IRQ_MATCH2), MP_ROM_INT(PCNT_EVT_THRES_0) }
+*/
+#define COMMON_CONSTANTS \
+    { MP_ROM_QSTR(MP_QSTR_IRQ_ZERO), MP_ROM_INT(PCNT_EVT_ZERO) }, \
+    { MP_ROM_QSTR(MP_QSTR_IRQ_MATCH1), MP_ROM_INT(PCNT_EVT_THRES_1) }
 
 STATIC const mp_rom_map_elem_t machine_Counter_locals_dict_table[] = {
     { MP_ROM_QSTR(MP_QSTR_init), MP_ROM_PTR(&machine_Counter_init_obj) },
