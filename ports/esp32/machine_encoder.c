@@ -100,11 +100,6 @@ STATIC void IRAM_ATTR pcnt_intr_handler(void *arg) {
                     pcnt_get_counter_value(self->unit, &count);
                     DBG("PCNT_EVT_THRES_1 self->counter=%d count=%d self->match1=%d", self->counter, count, self->match1);
                     if ((self->counter + count) == self->match1) {
-                        /*
-                        self->counter += count;
-                        pcnt_counter_clear(self->unit);
-                        */
-                        //self->status |= PCNT_EVT_THRES_1;
                         mp_sched_schedule(self->handler_match1, MP_OBJ_FROM_PTR(self));
                         mp_hal_wake_main_task_from_isr();
                     }
@@ -114,11 +109,6 @@ STATIC void IRAM_ATTR pcnt_intr_handler(void *arg) {
                     pcnt_get_counter_value(self->unit, &count);
                     DBG("PCNT_EVT_THRES_0 self->counter=%d count=%d self->match1=%d", self->counter, count, self->match1);
                     if ((self->counter + count) == self->match1) {
-                        /*
-                        self->counter += count;
-                        pcnt_counter_clear(self->unit);
-                        */
-                        //self->status |= PCNT_EVT_THRES_0;
                         mp_sched_schedule(self->handler_match1, MP_OBJ_FROM_PTR(self));
                         mp_hal_wake_main_task_from_isr();
                     }
@@ -129,11 +119,6 @@ STATIC void IRAM_ATTR pcnt_intr_handler(void *arg) {
                     pcnt_get_counter_value(self->unit, &count);
                     DBG("PCNT_EVT_THRES_0 self->counter=%d count=%d self->match2=%d", self->counter, count, self->match2);
                     if ((self->counter + count) == self->match2) {
-
-                        //self->counter += count;
-                        //pcnt_counter_clear(self->unit);
-
-                        //self->status |= PCNT_EVT_THRES_0;
                         mp_sched_schedule(self->handler_match2, MP_OBJ_FROM_PTR(self));
                         mp_hal_wake_main_task_from_isr();
                     }
@@ -370,26 +355,32 @@ STATIC mp_obj_t machine_PCNT_irq(size_t n_pos_args, const mp_obj_t *pos_args, mp
     } else {
         if (trigger & PCNT_EVT_THRES_1) {
             if (args[ARG_value].u_obj != MP_OBJ_NULL) {
-                self->match1 = GET_INT(args[ARG_value].u_obj);
-                int16_t count;
-                pcnt_get_counter_value(self->unit, &count);
-                self->counter += count;
-                DBG("irq() self->counter=%d, count=%d", self->counter, count);
+                match1 =  = GET_INT(args[ARG_value].u_obj)
+                if (self->match1 != match1) {
+                    self->match1 = match1;
+                    pcnt_event_disable(self->unit, PCNT_EVT_THRES_1);
+                    pcnt_event_disable(self->unit, PCNT_EVT_THRES_0);
 
-                #ifdef USE_INT64
-                counter_t counter_match = remainder_of_division(self->match1, INT16_ROLL);
-                #else
-                counter_t counter_match = self->match1 % INT16_ROLL;
-                #endif
-                check_esp_err(pcnt_set_event_value(self->unit, PCNT_EVT_THRES_1, (int16_t)counter_match));
-                check_esp_err(pcnt_set_event_value(self->unit, PCNT_EVT_THRES_0, (int16_t)(-INT16_ROLL + counter_match)));
+                    int16_t count;
+                    pcnt_get_counter_value(self->unit, &count);
+                    self->counter += count;
+                    DBG("irq() self->counter=%d, self->counter % INT16_ROLL=%d, count=%d", self->counter, self->counter % INT16_ROLL, count);
 
-                pcnt_counter_clear(self->unit);
+                    #ifdef USE_INT64
+                    counter_t counter_match = remainder_of_division(self->counter + self->match1, INT16_ROLL);
+                    #else
+                    counter_t counter_match = (self->match1 - self->counter % INT16_ROLL) % INT16_ROLL;
+                    #endif
+                    check_esp_err(pcnt_set_event_value(self->unit, PCNT_EVT_THRES_1, (int16_t)counter_match));
+                    check_esp_err(pcnt_set_event_value(self->unit, PCNT_EVT_THRES_0, (int16_t)(-INT16_ROLL + counter_match)));
 
-                check_esp_err(pcnt_get_event_value(self->unit, PCNT_EVT_THRES_1, &count));
-                DBG("self->match1=%d, PCNT_EVT_THRES_1 match=%d", self->match1, count);
-                check_esp_err(pcnt_get_event_value(self->unit, PCNT_EVT_THRES_0, &count));
-                DBG("self->match1=%d, PCNT_EVT_THRES_0 match=%d", self->match1, count);
+                    pcnt_counter_clear(self->unit);
+
+                    check_esp_err(pcnt_get_event_value(self->unit, PCNT_EVT_THRES_1, &count));
+                    DBG("self->match1=%d, PCNT_EVT_THRES_1 match=%d", self->match1, count);
+                    check_esp_err(pcnt_get_event_value(self->unit, PCNT_EVT_THRES_0, &count));
+                    DBG("self->match1=%d, PCNT_EVT_THRES_0 match=%d", self->match1, count);
+                }
             }
             self->handler_match1 = handler;
             pcnt_event_enable(self->unit, PCNT_EVT_THRES_1);
