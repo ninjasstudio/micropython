@@ -171,10 +171,6 @@ STATIC void set_filter_value(pcnt_unit_t unit, int16_t value) {
 }
 
 STATIC void pcnt_disable_events(mp_pcnt_obj_t *self) {
-    if (self->handler_match2 != MP_OBJ_NULL) {
-        check_esp_err(pcnt_event_disable(self->unit, PCNT_EVT_THRES_0));
-        self->handler_match2 = MP_OBJ_NULL;
-    }
     if (self->handler_match1 != MP_OBJ_NULL) {
         check_esp_err(pcnt_event_disable(self->unit, PCNT_EVT_THRES_1));
         check_esp_err(pcnt_event_disable(self->unit, PCNT_EVT_THRES_0));
@@ -516,9 +512,7 @@ STATIC void pcnt_init_new(mp_pcnt_obj_t *self, size_t n_args, const mp_obj_t *ar
 
     self->status = 0;
     self->match1 = 0;
-    self->match2 = 0;
     self->handler_match1 = MP_OBJ_NULL;
-    self->handler_match2 = MP_OBJ_NULL;
     self->handler_zero = MP_OBJ_NULL;
 
     self->unit = mp_obj_get_int(args[0]);
@@ -565,9 +559,6 @@ MP_DEFINE_CONST_FUN_OBJ_KW(machine_Counter_init_obj, 1, machine_Counter_init);
 STATIC void common_print_kw(const mp_print_t *print, mp_pcnt_obj_t *self) {
     if (self->handler_match1 != MP_OBJ_NULL) {
         mp_printf(print, ", match1=%ld", self->match1);
-    }
-    if (self->handler_match2 != MP_OBJ_NULL) {
-        mp_printf(print, ", match2=%ld", self->match2);
     }
     if (self->handler_zero != MP_OBJ_NULL) {
         mp_printf(print, ", match=0");

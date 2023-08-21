@@ -30,9 +30,7 @@ typedef struct _mp_pcnt_obj_t {
     volatile counter_t counter;
 
     counter_t match1;
-    counter_t match2;
     mp_obj_t handler_match1;
-    mp_obj_t handler_match2;
     mp_obj_t handler_zero;
     int status;
 
