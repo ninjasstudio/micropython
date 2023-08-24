@@ -85,7 +85,6 @@ STATIC void IRAM_ATTR pcnt_intr_handler(void *arg) {
                     self->counter += INT16_ROLL;
                 } else if (status_unit & PCNT_EVT_L_LIM) {
                     self->counter -= INT16_ROLL;
-                    DBG("-= PCNT_EVT_L_LIM self->counter=%d", self->counter);
                 }
 
                 self->status = status_unit;
