@@ -47,9 +47,6 @@ See also
 https://github.com/espressif/esp-idf/tree/master/examples/peripherals/pcnt/rotary_encoder
 */
 
-#define DBG(...)
-//#define DBG(...) mp_printf(&mp_plat_print, __VA_ARGS__); mp_printf(&mp_plat_print, "\n");
-
 #include "py/mpprint.h"
 #include "py/runtime.h"
 #include "mphalport.h"
@@ -77,18 +74,15 @@ STATIC mp_pcnt_obj_t *pcnts[PCNT_UNIT_MAX] = {};
  */
 STATIC void IRAM_ATTR pcnt_intr_handler(void *arg) {
     uint32_t intr_status = PCNT.int_st.val;
-    DBG("intr_status=%d", intr_status);
     uint32_t status_unit;
     for (int id = 0; id < PCNT_UNIT_MAX; ++id) {
         if (intr_status & BIT(id)) {
             PCNT.int_clr.val = BIT(id); // clear the interrupt
             status_unit = PCNT.status_unit[id].val;
-            DBG("status_unit=%d", status_unit);
             mp_pcnt_obj_t *self = pcnts[id];
             if (self != NULL) {
                 if (status_unit & PCNT_EVT_H_LIM) {
                     self->counter += INT16_ROLL;
-                    DBG("+= PCNT_EVT_H_LIM self->counter=%d", self->counter);
                 } else if (status_unit & PCNT_EVT_L_LIM) {
                     self->counter -= INT16_ROLL;
                     DBG("-= PCNT_EVT_L_LIM self->counter=%d", self->counter);
@@ -98,7 +92,6 @@ STATIC void IRAM_ATTR pcnt_intr_handler(void *arg) {
                 if (status_unit & PCNT_EVT_THRES_1) {
                     int16_t count;
                     pcnt_get_counter_value(self->unit, &count);
-                    DBG("PCNT_EVT_THRES_1 self->counter=%d count=%d self->match1=%d", self->counter, count, self->match1);
                     if ((self->counter + count) == self->match1) {
                         mp_sched_schedule(self->handler_match1, MP_OBJ_FROM_PTR(self));
                         mp_hal_wake_main_task_from_isr();
@@ -107,25 +100,12 @@ STATIC void IRAM_ATTR pcnt_intr_handler(void *arg) {
                 if (status_unit & PCNT_EVT_THRES_0) {
                     int16_t count;
                     pcnt_get_counter_value(self->unit, &count);
-                    DBG("PCNT_EVT_THRES_0 self->counter=%d count=%d self->match1=%d", self->counter, count, self->match1);
                     if ((self->counter + count) == self->match1) {
                         mp_sched_schedule(self->handler_match1, MP_OBJ_FROM_PTR(self));
                         mp_hal_wake_main_task_from_isr();
                     }
                 }
-                /*
-                if (status_unit & PCNT_EVT_THRES_0) {
-                    int16_t count;
-                    pcnt_get_counter_value(self->unit, &count);
-                    DBG("PCNT_EVT_THRES_0 self->counter=%d count=%d self->match2=%d", self->counter, count, self->match2);
-                    if ((self->counter + count) == self->match2) {
-                        mp_sched_schedule(self->handler_match2, MP_OBJ_FROM_PTR(self));
-                        mp_hal_wake_main_task_from_isr();
-                    }
-                }
-                */
                 if (status_unit & PCNT_EVT_ZERO) {
-                    DBG("PCNT_EVT_ZERO");
                     if (self->counter == 0) {
                         //self->status |= PCNT_EVT_ZERO;
                         mp_sched_schedule(self->handler_zero, MP_OBJ_FROM_PTR(self));
@@ -192,10 +172,6 @@ STATIC void set_filter_value(pcnt_unit_t unit, int16_t value) {
 }
 
 STATIC void pcnt_disable_events(mp_pcnt_obj_t *self) {
-    if (self->handler_match2 != MP_OBJ_NULL) {
-        check_esp_err(pcnt_event_disable(self->unit, PCNT_EVT_THRES_0));
-        self->handler_match2 = MP_OBJ_NULL;
-    }
     if (self->handler_match1 != MP_OBJ_NULL) {
         check_esp_err(pcnt_event_disable(self->unit, PCNT_EVT_THRES_1));
         check_esp_err(pcnt_event_disable(self->unit, PCNT_EVT_THRES_0));
@@ -328,7 +304,6 @@ STATIC mp_obj_t machine_PCNT_irq(size_t n_pos_args, const mp_obj_t *pos_args, mp
     enum { ARG_handler, ARG_trigger, ARG_value };
     static const mp_arg_t allowed_args[] = {
         { MP_QSTR_handler, MP_ARG_OBJ, {.u_obj = mp_const_none} },
-//      { MP_QSTR_trigger, MP_ARG_INT, {.u_int = PCNT_EVT_THRES_0 | PCNT_EVT_THRES_1 | PCNT_EVT_ZERO} },
         { MP_QSTR_trigger, MP_ARG_INT, {.u_int = PCNT_EVT_THRES_1 | PCNT_EVT_ZERO} },
         { MP_QSTR_value, MP_ARG_OBJ, {.u_obj = MP_OBJ_NULL} },
     };
@@ -367,7 +342,6 @@ STATIC mp_obj_t machine_PCNT_irq(size_t n_pos_args, const mp_obj_t *pos_args, mp
                     int16_t count;
                     pcnt_get_counter_value(self->unit, &count);
                     self->counter += count;
-                    DBG("irq() self->counter=%d, self->counter % INT16_ROLL=%d, count=%d", self->counter, self->counter % INT16_ROLL, count);
 
                     #ifdef USE_INT64
                     counter_t counter_match = remainder_of_division(self->counter + self->match1, INT16_ROLL);
@@ -378,34 +352,10 @@ STATIC mp_obj_t machine_PCNT_irq(size_t n_pos_args, const mp_obj_t *pos_args, mp
                     check_esp_err(pcnt_set_event_value(self->unit, PCNT_EVT_THRES_0, (int16_t)(-INT16_ROLL + counter_match)));
 
                     pcnt_counter_clear(self->unit);
-
-                    check_esp_err(pcnt_get_event_value(self->unit, PCNT_EVT_THRES_1, &count));
-                    DBG("self->match1=%d, PCNT_EVT_THRES_1 match=%d", self->match1, count);
-                    check_esp_err(pcnt_get_event_value(self->unit, PCNT_EVT_THRES_0, &count));
-                    DBG("self->match1=%d, PCNT_EVT_THRES_0 match=%d", self->match1, count);
                 }
             }
             self->handler_match1 = handler;
             pcnt_event_enable(self->unit, PCNT_EVT_THRES_1);
-            pcnt_event_enable(self->unit, PCNT_EVT_THRES_0);
-        }
-        if (trigger & PCNT_EVT_THRES_0) {
-            if (args[ARG_value].u_obj != MP_OBJ_NULL) {
-                self->match2 = GET_INT(args[ARG_value].u_obj);
-                #ifdef USE_INT64
-                counter_t counter_match = remainder_of_division(self->match2, INT16_ROLL);
-                #else
-                counter_t counter_match = self->match2 % INT16_ROLL;
-                #endif
-                DBG("self->match2=%d, counter_match2=%d", self->match2, counter_match);
-                check_esp_err(pcnt_set_event_value(self->unit, PCNT_EVT_THRES_0, (int16_t)counter_match));
-
-                int16_t count;
-                pcnt_get_counter_value(self->unit, &count);
-                self->counter += count;
-                pcnt_counter_clear(self->unit);
-            }
-            self->handler_match2 = handler;
             pcnt_event_enable(self->unit, PCNT_EVT_THRES_0);
         }
         if (trigger & PCNT_EVT_ZERO) {
@@ -563,9 +513,7 @@ STATIC void pcnt_init_new(mp_pcnt_obj_t *self, size_t n_args, const mp_obj_t *ar
 
     self->status = 0;
     self->match1 = 0;
-    self->match2 = 0;
     self->handler_match1 = MP_OBJ_NULL;
-    self->handler_match2 = MP_OBJ_NULL;
     self->handler_zero = MP_OBJ_NULL;
 
     self->unit = mp_obj_get_int(args[0]);
@@ -613,8 +561,8 @@ STATIC void common_print_kw(const mp_print_t *print, mp_pcnt_obj_t *self) {
     if (self->handler_match1 != MP_OBJ_NULL) {
         mp_printf(print, ", match1=%ld", self->match1);
     }
-    if (self->handler_match2 != MP_OBJ_NULL) {
-        mp_printf(print, ", match2=%ld", self->match2);
+    if (self->handler_zero != MP_OBJ_NULL) {
+        mp_printf(print, ", match=0");
     }
     if (self->handler_zero != MP_OBJ_NULL) {
         mp_printf(print, ", match=0");
@@ -651,12 +599,7 @@ STATIC void machine_Counter_print(const mp_print_t *print, mp_obj_t self_obj, mp
     { MP_ROM_QSTR(MP_QSTR_id), MP_ROM_PTR(&machine_PCNT_id_obj) }, \
     { MP_ROM_QSTR(MP_QSTR_status), MP_ROM_PTR(&machine_PCNT_status_obj) }, \
     { MP_ROM_QSTR(MP_QSTR_irq), MP_ROM_PTR(&machine_PCNT_irq_obj) }
-/*
-#define COMMON_CONSTANTS \
-    { MP_ROM_QSTR(MP_QSTR_IRQ_ZERO), MP_ROM_INT(PCNT_EVT_ZERO) }, \
-    { MP_ROM_QSTR(MP_QSTR_IRQ_MATCH1), MP_ROM_INT(PCNT_EVT_THRES_1) }, \
-    { MP_ROM_QSTR(MP_QSTR_IRQ_MATCH2), MP_ROM_INT(PCNT_EVT_THRES_0) }
-*/
+
 #define COMMON_CONSTANTS \
     { MP_ROM_QSTR(MP_QSTR_IRQ_ZERO), MP_ROM_INT(PCNT_EVT_ZERO) }, \
     { MP_ROM_QSTR(MP_QSTR_IRQ_MATCH1), MP_ROM_INT(PCNT_EVT_THRES_1) }
