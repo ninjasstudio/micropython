@@ -224,7 +224,6 @@ STATIC void configure_channel(machine_pwm_obj_t *self) {
     if (self->channel_duty == max_duty) {
         cfg.duty = 0;
         cfg.flags.output_invert = self->output_invert ^ 1;
-        MP_PRN(3, " max_duty! cfg.duty=%d, cfg.flags.output_invert=%d", cfg.duty, cfg.flags.output_invert);
     }
     check_esp_err(ledc_channel_config(&cfg));
 
@@ -235,7 +234,6 @@ STATIC void configure_channel(machine_pwm_obj_t *self) {
     #if SOC_LEDC_SUPPORT_HS_MODE
     } else if (self->mode == LEDC_HIGH_SPEED_MODE) {
         esp_rom_gpio_connect_out_signal(self->pin, LEDC_HS_SIG_OUT0_IDX + self->channel, self->output_invert, false);
-        // MP_PRN(3, " self->pin=%d, LEDC_HS_SIG_OUT0_IDX + self->channel=%d", self->pin, LEDC_HS_SIG_OUT0_IDX + self->channel);
     #endif
     }
     /*
@@ -526,7 +524,6 @@ STATIC void select_a_timer(machine_pwm_obj_t *self, int freq) {
     && (self->channel >= 0)
     && (self->mode >= 0)) {
         // Bind the channel to the timer
-        MP_PRN(2, " Bind the channel to the timer: mode=%d, channel=%d, timer=%d, freq=%d, freq_hz=%d", self->mode, self->channel, self->timer, freq, timers[mode][timer].freq_hz);
         self->mode = mode;
         self->timer = timer;
         check_esp_err(ledc_bind_channel_timer(self->mode, self->channel, self->timer));
@@ -694,7 +691,6 @@ STATIC void mp_machine_pwm_init_helper(machine_pwm_obj_t *self,
     || ((save_channel != self->channel))
     || ((save_timer != self->timer))) {
         configure_channel(self);
-        MP_PRN(3, " configure_channel: freq=%d", freq);
         register_channel(self->mode, self->channel, self->pin, self->timer);
     }
 }
@@ -747,7 +743,6 @@ STATIC void mp_machine_pwm_deinit(machine_pwm_obj_t *self) {
 // Set and get methods of PWM class
 
 STATIC mp_obj_t mp_machine_pwm_freq_get(machine_pwm_obj_t *self) {
-    // pwm_is_active(self);
     if (self->timer < 0) {
         return MP_OBJ_NEW_SMALL_INT(0);
     } else {
@@ -766,7 +761,6 @@ STATIC void mp_machine_pwm_freq_set(machine_pwm_obj_t *self, mp_int_t freq) {
 }
 
 STATIC mp_obj_t mp_machine_pwm_duty_get(machine_pwm_obj_t *self) {
-    //pwm_is_active(self);
     if (self->timer < 0) {
         return MP_OBJ_NEW_SMALL_INT(0);
     } else {
@@ -780,7 +774,6 @@ STATIC void mp_machine_pwm_duty_set(machine_pwm_obj_t *self, mp_int_t duty) {
 }
 
 STATIC mp_obj_t mp_machine_pwm_duty_get_u16(machine_pwm_obj_t *self) {
-    //pwm_is_active(self);
     if (self->timer < 0) {
         return MP_OBJ_NEW_SMALL_INT(0);
     } else {
@@ -794,7 +787,6 @@ STATIC void mp_machine_pwm_duty_set_u16(machine_pwm_obj_t *self, mp_int_t duty) 
 }
 
 STATIC mp_obj_t mp_machine_pwm_duty_get_ns(machine_pwm_obj_t *self) {
-    //pwm_is_active(self);
     if (self->timer < 0) {
         return MP_OBJ_NEW_SMALL_INT(0);
     } else {
