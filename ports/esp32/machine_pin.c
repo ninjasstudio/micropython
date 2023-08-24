@@ -57,6 +57,14 @@
 #define GPIO_FIRST_NON_OUTPUT (46)
 #endif
 
+typedef struct _machine_pin_obj_cfg_t {
+    int8_t mode;
+    int8_t pull;
+} machine_pin_obj_cfg_t;
+
+STATIC machine_pin_obj_cfg_t machine_pin_obj_cfg_table[GPIO_NUM_MAX];
+STATIC bool inited_cfg_table = false;
+
 // Return the gpio_num_t index for a given pin or pin-irq object.
 #define PIN_OBJ_INDEX(self) ((self) - &machine_pin_obj_table[0])
 #define PIN_IRQ_OBJ_INDEX(self) ((self) - &machine_pin_irq_obj_table[0])
@@ -128,7 +136,14 @@ gpio_num_t machine_pin_get_id(mp_obj_t pin_in) {
 
 STATIC void machine_pin_print(const mp_print_t *print, mp_obj_t self_in, mp_print_kind_t kind) {
     machine_pin_obj_t *self = self_in;
-    mp_printf(print, "Pin(%u)", PIN_OBJ_INDEX(self));
+    mp_printf(print, "Pin(%u", PIN_OBJ_INDEX(self));
+    if (machine_pin_obj_cfg_table[PIN_OBJ_INDEX(self)].mode != -1) {
+        mp_printf(print, ", mode=%d", machine_pin_obj_cfg_table[PIN_OBJ_INDEX(self)].mode);
+    }
+    if (machine_pin_obj_cfg_table[PIN_OBJ_INDEX(self)].pull != -1) {
+        mp_printf(print, ", pull=%d", machine_pin_obj_cfg_table[PIN_OBJ_INDEX(self)].pull);
+    }
+    mp_printf(print, ")");
 }
 
 // pin.init(mode=None, pull=-1, *, value, drive, hold)
@@ -186,6 +201,7 @@ STATIC mp_obj_t machine_pin_obj_init_helper(const machine_pin_obj_t *self, size_
         }
         #endif
         gpio_set_direction(PIN_OBJ_INDEX(self), pin_io_mode);
+        machine_pin_obj_cfg_table[PIN_OBJ_INDEX(self)].mode = pin_io_mode;
     }
 
     // configure pull
@@ -204,6 +220,7 @@ STATIC mp_obj_t machine_pin_obj_init_helper(const machine_pin_obj_t *self, size_
         } else {
             gpio_pullup_dis(PIN_OBJ_INDEX(self));
         }
+        machine_pin_obj_cfg_table[PIN_OBJ_INDEX(self)].pull = mode;
     }
 
     // configure pad hold
@@ -223,6 +240,13 @@ STATIC mp_obj_t machine_pin_obj_init_helper(const machine_pin_obj_t *self, size_
 mp_obj_t mp_pin_make_new(const mp_obj_type_t *type, size_t n_args, size_t n_kw, const mp_obj_t *args) {
     mp_arg_check_num(n_args, n_kw, 1, MP_OBJ_FUN_ARGS_MAX, true);
 
+    if (!inited_cfg_table) {
+        inited_cfg_table = true;
+        for (int i = 0; i < GPIO_NUM_MAX; ++i) {
+            machine_pin_obj_cfg_table[i].mode = -1;
+            machine_pin_obj_cfg_table[i].pull = -1;
+        }
+    }
     // get the wanted pin object
     const machine_pin_obj_t *self = machine_pin_find(args[0]);
 
