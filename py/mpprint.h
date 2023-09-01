@@ -113,6 +113,7 @@ int mp_vprintf(const mp_print_t *print, const char *fmt, va_list args);
 // How to use:
 // Set MP_PRN_LEVEL in developed *.C or *.CPP file, for example
 #define MP_PRN_LEVEL 1000 // show all messages
+
 // Add MP_PRN() macro in code, like
 void foo(int arg) {
     MP_PRN(MP_PRN_TRACE, "Enter foo()")
