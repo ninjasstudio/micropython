@@ -3,7 +3,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2013, 2014 Damien P. George
+ * Copyright (c) 2020 Jim Mussared
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,34 +24,7 @@
  * THE SOFTWARE.
  */
 
-#include <stdlib.h>
+#ifndef MICROPY_INCLUDED_MIMXRT_NIMBLE_PORT_H
+#define MICROPY_INCLUDED_MIMXRT_NIMBLE_PORT_H
 
-#include "py/runtime.h"
-#include "pendsv.h"
-#include "irq.h"
-
-#if defined(PENDSV_DISPATCH_NUM_SLOTS)
-pendsv_dispatch_t pendsv_dispatch_table[PENDSV_DISPATCH_NUM_SLOTS];
-#endif
-
-void pendsv_init(void) {
-    // set PendSV interrupt at lowest priority
-    NVIC_SetPriority(PendSV_IRQn, IRQ_PRI_PENDSV);
-}
-
-#if defined(PENDSV_DISPATCH_NUM_SLOTS)
-void pendsv_schedule_dispatch(size_t slot, pendsv_dispatch_t f) {
-    pendsv_dispatch_table[slot] = f;
-    SCB->ICSR = SCB_ICSR_PENDSVSET_Msk;
-}
-
-void PendSV_Handler(void) {
-    for (size_t i = 0; i < PENDSV_DISPATCH_NUM_SLOTS; ++i) {
-        if (pendsv_dispatch_table[i] != NULL) {
-            pendsv_dispatch_t f = pendsv_dispatch_table[i];
-            pendsv_dispatch_table[i] = NULL;
-            f();
-        }
-    }
-}
-#endif
+#endif // MICROPY_INCLUDED_MIMXRT_NIMBLE_PORT_H

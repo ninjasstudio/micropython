@@ -32,7 +32,6 @@
 #include "py/mperrno.h"
 #include "py/mphal.h"
 #include "extmod/modnetwork.h"
-#include "extint.h"
 #include "pendsv.h"
 #include "sdio.h"
 
@@ -81,7 +80,6 @@
 #define cyw43_hal_ticks_ms              mp_hal_ticks_ms
 
 #define cyw43_hal_pin_obj_t             mp_hal_pin_obj_t
-#define cyw43_hal_pin_config            mp_hal_pin_config
 #define cyw43_hal_pin_read              mp_hal_pin_read
 #define cyw43_hal_pin_low               mp_hal_pin_low
 #define cyw43_hal_pin_high              mp_hal_pin_high
@@ -90,42 +88,37 @@
 #define cyw43_hal_get_mac_ascii         mp_hal_get_mac_ascii
 #define cyw43_hal_generate_laa_mac      mp_hal_generate_laa_mac
 
-#define CYW43_PIN_WL_REG_ON             pyb_pin_WL_REG_ON
-#define CYW43_PIN_WL_HOST_WAKE          pyb_pin_WL_HOST_WAKE
-#define CYW43_PIN_WL_SDIO_1             pyb_pin_WL_SDIO_1
-#define CYW43_PIN_WL_GPIO_1             pyb_pin_WL_GPIO_1
-#define CYW43_PIN_WL_GPIO_4             pyb_pin_WL_GPIO_4
+#define cyw43_delay_us                  mp_hal_delay_us
+#define cyw43_delay_ms                  mp_hal_delay_ms
 
-#define CYW43_PIN_BT_REG_ON             pyb_pin_BT_REG_ON
-#define CYW43_PIN_BT_HOST_WAKE          pyb_pin_BT_HOST_WAKE
-#define CYW43_PIN_BT_DEV_WAKE           pyb_pin_BT_DEV_WAKE
-#define CYW43_PIN_BT_CTS                pyb_pin_BT_CTS
+#define CYW43_PIN_WL_REG_ON             MICROPY_HW_WL_REG_ON
+#define CYW43_PIN_WL_HOST_WAKE          MICROPY_HW_WL_HOST_WAKE
+#define CYW43_PIN_WL_SDIO_1             MICROPY_HW_SDIO_D1
+
+#define CYW43_PIN_BT_REG_ON             MICROPY_HW_BT_REG_ON
+#ifdef MICROPY_HW_BT_HOST_WAKE
+#define CYW43_PIN_BT_HOST_WAKE          MICROPY_HW_BT_HOST_WAKE
+#endif
+#ifdef MICROPY_HW_BT_DEV_WAKE
+#define CYW43_PIN_BT_DEV_WAKE           MICROPY_HW_BT_DEV_WAKE
+#endif
+#ifdef MICROPY_HW_BT_CTS
+#define CYW43_PIN_BT_CTS                MICROPY_HW_BT_CTS
+#endif
 
 #if MICROPY_HW_ENABLE_RF_SWITCH
-#define CYW43_PIN_WL_RFSW_VDD           pyb_pin_WL_RFSW_VDD
+#define CYW43_PIN_WL_RFSW_VDD           pin_WL_RFSW_VDD
 #endif
 
 #define cyw43_schedule_internal_poll_dispatch(func) pendsv_schedule_dispatch(PENDSV_DISPATCH_CYW43, func)
 
-void cyw43_post_poll_hook(void);
-
-static inline void cyw43_delay_us(uint32_t us) {
-    uint32_t start = mp_hal_ticks_us();
-    while (mp_hal_ticks_us() - start < us) {
-    }
-}
-
-static inline void cyw43_delay_ms(uint32_t ms) {
-    uint32_t us = ms * 1000;
-    uint32_t start = mp_hal_ticks_us();
-    while (mp_hal_ticks_us() - start < us) {
-        MICROPY_EVENT_POLL_HOOK;
-    }
+static inline void cyw43_hal_pin_config(cyw43_hal_pin_obj_t pin, uint8_t mode, uint8_t pull, uint8_t alt) {
+    machine_pin_set_mode(pin, mode);
 }
 
 static inline void cyw43_hal_pin_config_irq_falling(cyw43_hal_pin_obj_t pin, int enable) {
     if (enable) {
-        extint_set(pin, GPIO_MODE_IT_FALLING);
+        machine_pin_config(pin, PIN_MODE_IT_FALLING, PIN_PULL_UP_100K, 0, 0, PIN_AF_MODE_ALT5);
     }
 }
 

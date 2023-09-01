@@ -3,7 +3,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2013, 2014 Damien P. George
+ * Copyright (c) 2023 Ibrahim Abdelkader <iabdalkader@openmv.io>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,35 +23,18 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+#ifndef MICROPY_INCLUDED_MIMXRT_SDIO_H
+#define MICROPY_INCLUDED_MIMXRT_SDIO_H
 
-#include <stdlib.h>
+#include <stdbool.h>
+#include <stdint.h>
 
-#include "py/runtime.h"
-#include "pendsv.h"
-#include "irq.h"
+void sdio_init(uint32_t irq_pri);
+void sdio_deinit(void);
+void sdio_reenable(void);
+void sdio_enable_irq(bool enable);
+void sdio_enable_high_speed_4bit(void);
+int sdio_transfer(uint32_t cmd, uint32_t arg, uint32_t *resp);
+int sdio_transfer_cmd53(bool write, uint32_t block_size, uint32_t arg, size_t len, uint8_t *buf);
 
-#if defined(PENDSV_DISPATCH_NUM_SLOTS)
-pendsv_dispatch_t pendsv_dispatch_table[PENDSV_DISPATCH_NUM_SLOTS];
-#endif
-
-void pendsv_init(void) {
-    // set PendSV interrupt at lowest priority
-    NVIC_SetPriority(PendSV_IRQn, IRQ_PRI_PENDSV);
-}
-
-#if defined(PENDSV_DISPATCH_NUM_SLOTS)
-void pendsv_schedule_dispatch(size_t slot, pendsv_dispatch_t f) {
-    pendsv_dispatch_table[slot] = f;
-    SCB->ICSR = SCB_ICSR_PENDSVSET_Msk;
-}
-
-void PendSV_Handler(void) {
-    for (size_t i = 0; i < PENDSV_DISPATCH_NUM_SLOTS; ++i) {
-        if (pendsv_dispatch_table[i] != NULL) {
-            pendsv_dispatch_t f = pendsv_dispatch_table[i];
-            pendsv_dispatch_table[i] = NULL;
-            f();
-        }
-    }
-}
-#endif
+#endif // MICROPY_INCLUDED_MIMXRT_SDIO_H
