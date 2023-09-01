@@ -81,6 +81,7 @@ int mp_vprintf(const mp_print_t *print, const char *fmt, va_list args);
 
 #endif // MICROPY_INCLUDED_PY_MPPRINT_H
 
+// You can use several MP_PRN_LEVEL defines in separate _.c files
 #if defined(MP_PRN_LEVEL) && (MP_PRN_LEVEL > 0)
 // Debug messages during code developing with MP_PRN(level, ...) & MP_PRN_LEVEL.
 // An approximate hierarchy of debug levels MP_PRN_LEVEL is:
