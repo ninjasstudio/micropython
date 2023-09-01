@@ -37,7 +37,7 @@
 #include "esp_err.h"
 #include "soc/gpio_sig_map.h"
 
-#define MP_PRN_LEVEL 0//2//3
+#define MP_PRN_LEVEL 3
 #include "py/mpprint.h"
 
 typedef struct _chan_t {
