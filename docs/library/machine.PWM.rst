@@ -12,19 +12,19 @@ Example usage::
 
     pwm = PWM(pin, freq=50, duty_u16=8192)  # create a PWM object on a pin
                                             # and set freq 50 Hz and duty 12.5%
-    pwm.duty_u16(32768)     # set duty to 50%
+    pwm.duty_u16(32768)                     # set duty to 50%
 
     # reinitialise with a period of 200us, duty of 5us
     pwm.init(freq=5000, duty_ns=5000)
 
-    pwm.duty_ns(3000)       # set pulse width to 3us
+    pwm.duty_ns(3000)                       # set pulse width to 3us
 
     pwm.deinit()
 
 Constructors
 ------------
 
-.. class:: PWM(dest, *, freq, duty_u16, duty_ns, invert)
+.. class:: PWM(dest, *, freq, duty_u16, duty_ns, invert=False)
 
    Construct and return a new PWM object using the following parameters:
 
