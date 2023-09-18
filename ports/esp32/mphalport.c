@@ -58,7 +58,12 @@ STATIC uint8_t stdin_ringbuf_array[260];
 ringbuf_t stdin_ringbuf = {stdin_ringbuf_array, sizeof(stdin_ringbuf_array), 0, 0};
 
 // Check the ESP-IDF error code and raise an OSError if it's not ESP_OK.
-void check_esp_err_(esp_err_t code, const char* func, const int line, const char *file) {
+#if MICROPY_ERROR_REPORTING <= MICROPY_ERROR_REPORTING_NORMAL
+void check_esp_err_(esp_err_t code)
+#else
+void check_esp_err_(esp_err_t code, const char *func, const int line, const char *file)
+#endif
+{
     if (code != ESP_OK) {
         // map esp-idf error code to posix error code
         uint32_t pcode = -code;
@@ -78,7 +83,28 @@ void check_esp_err_(esp_err_t code, const char* func, const int line, const char
                 pcode = MP_EOPNOTSUPP;
                 break;
         }
-        mp_raise_msg_varg(&mp_type_OSError, "(%d, 0x%04X, '%s')", pcode, code, (const char *)esp_err_to_name(code));
+        // construct string object
+        mp_obj_str_t *o_str = m_new_obj_maybe(mp_obj_str_t);
+        if (o_str == NULL) {
+            mp_raise_OSError(pcode);
+            return;
+        }
+        o_str->base.type = &mp_type_str;
+        #if MICROPY_ERROR_REPORTING > MICROPY_ERROR_REPORTING_NORMAL
+        char err_msg[64];
+        esp_err_to_name_r(code, err_msg, sizeof(err_msg));
+        vstr_t vstr;
+        vstr_init(&vstr, 80);
+        vstr_printf(&vstr, "0x%04X %s in function '%s' at line %d in file '%s'", code, err_msg, func, line, file);
+        o_str->data = (const byte *)vstr_null_terminated_str(&vstr);
+        #else
+        o_str->data = (const byte *)esp_err_to_name(code); // esp_err_to_name ret's ptr to const str
+        #endif
+        o_str->len = strlen((char *)o_str->data);
+        o_str->hash = qstr_compute_hash(o_str->data, o_str->len);
+        // raise
+        mp_obj_t args[2] = { MP_OBJ_NEW_SMALL_INT(pcode), MP_OBJ_FROM_PTR(o_str)};
+        nlr_raise(mp_obj_exception_make_new(&mp_type_OSError, 2, 0, args));
     }
 }
 
