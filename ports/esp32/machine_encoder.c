@@ -563,9 +563,6 @@ STATIC void common_print_kw(const mp_print_t *print, mp_pcnt_obj_t *self) {
     if (self->handler_zero != MP_OBJ_NULL) {
         mp_printf(print, ", match=0");
     }
-    if (self->handler_zero != MP_OBJ_NULL) {
-        mp_printf(print, ", match=0");
-    }
     mp_printf(print, ", filter_ns=%d)", filter_to_ns(self->filter));
 }
 
