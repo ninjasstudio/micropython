@@ -29,6 +29,9 @@
 
 #include <math.h>
 
+#define MP_PRN_LEVEL 0 // 1000 // show all messages
+#include "py/mpprint.h"
+
 #include "py/runtime.h"
 #include "py/mphal.h"
 
@@ -36,8 +39,6 @@
 #include "driver/ledc.h"
 #include "esp_err.h"
 #include "soc/gpio_sig_map.h"
-
-#include "py/mpprint.h"
 
 typedef struct _chan_t {
     // Which channel has which GPIO pin assigned?
@@ -328,6 +329,9 @@ STATIC void set_duty_u16(machine_pwm_obj_t *self, int duty) {
     } else if (channel_duty > max_duty) {
         channel_duty = max_duty;
     }
+
+    MP_PRN(3, "set_duty_u16(mode=%d, channel=%d, timer=%d, pin=%d, channel_duty=%d, duty=%d, timer->duty_resolution=%d)", self->mode, self->channel, self->timer, self->pin, channel_duty, duty, timer->duty_resolution);
+
     check_esp_err(ledc_set_duty(self->mode, self->channel, channel_duty));
     check_esp_err(ledc_update_duty(self->mode, self->channel));
 
