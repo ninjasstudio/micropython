@@ -40,3 +40,12 @@ class StepsPerRev():
     @micropython.native
     def rpm_to_f(self, rpm) -> float:
         return rpm * self.steps_per_rev / 60
+
+    @micropython.native
+    def f_to_rpm_(self, f, steps_per_rev) -> float:  # rotates per minute  # об/мин
+        return f * 60 / steps_per_rev
+
+    @micropython.native
+    def f_to_rps_(self, f, steps_per_rev) -> float:  # rotates per second  # об/с
+        return f / steps_per_rev
+
