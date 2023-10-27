@@ -3,6 +3,7 @@
 from time import ticks_ms, ticks_diff, sleep_ms
 from machine import Timer
 from _thread import start_new_thread
+import power
 
 BREAK_ANGLE = 10_000
 
@@ -97,6 +98,21 @@ class Rotator():
     #        t = ticks_ms()
 
             self.handle_sensors()
+
+            try:
+                if power.power_off_s > 0:
+                    try:
+                        if self.azim.parking_position is not None:
+                            self.azim.angle_target = self.azim.parking_position
+                    except:
+                        pass
+                    try:
+                        if self.elev.parking_position is not None:
+                            self.elev.angle_target = self.elev.parking_position
+                    except:
+                        pass
+            except:
+                pass
 
             if not self.manual:
                 if abs(self.azim.angle_counter - self.azim.angle_now) > BREAK_ANGLE:
