@@ -113,14 +113,17 @@ class MPU6500:
         self.address = address
 
         # 0x70 = standalone MPU6500, 0x71 = MPU6250 SIP
-        if self.whoami not in [0x71, 0x70]:
-            raise RuntimeError("MPU6500 not found in I2C bus.")
+#         if self.whoami not in [0x71, 0x70]:
+#             raise RuntimeError("MPU6500 not found in I2C bus.")
 
         self._accel_so = self._accel_fs(accel_fs)
         self._gyro_so = self._gyro_fs(gyro_fs)
         self._accel_sf = accel_sf
         self._gyro_sf = gyro_sf
         self._gyro_offset = gyro_offset
+
+        self.buf_prev = bytearray(b'\x00\x00\x00\x00\x00\x00')
+        self.error = False 
 
     def __repr__(self):
         return 'MPU6500(i2c={}, address={})'.format(self.i2c, self.address)
@@ -179,26 +182,53 @@ class MPU6500:
 
         self._gyro_offset = (ox / n, oy / n, oz / n)
         return self._gyro_offset
+    
+    def __readfrom_mem_into(self, address, register, buf):
+        try:
+            self.i2c.readfrom_mem_into(address, register, buf)
+            if len(buf) == 6:
+                self.buf_prev[:] = buf[:]
+            self.error = False 
+        except OSError as e:
+#             print('e=', e)
+#             print('len(buf)=', len(buf), buf)
+#             buf = b'\x00\x00\x00\x00\x00\x00'
+            #print(buf, self.buf_prev)
+            if len(buf) == 6:
+                buf[:] = self.buf_prev[:]
+            self.error = True 
+            pass 
+            
+    def __writeto_mem(self, address, register, buf):
+        try:
+            self.i2c.writeto_mem(address, register, buf)
+            self.error = False
+        except OSError as e:
+#             print('e=', e)
+#             print('len(buf)=', len(buf), buf)
+#             buf = b'\x00\x00\x00\x00\x00\x00'
+            self.error = True 
+        return None
 
     def _register_short(self, register, value=None, buf=bytearray(2)):
         if value is None:
-            self.i2c.readfrom_mem_into(self.address, register, buf)
+            self.__readfrom_mem_into(self.address, register, buf)
             return unpack(">h", buf)[0]
 
         pack_into(">h", buf, 0, value)
-        return self.i2c.writeto_mem(self.address, register, buf)
+        return self.__writeto_mem(self.address, register, buf)
 
     def _register_three_shorts(self, register, buf=bytearray(6)):
-        self.i2c.readfrom_mem_into(self.address, register, buf)
+        self.__readfrom_mem_into(self.address, register, buf)
         return unpack(">hhh", buf)
 
     def _register_char(self, register, value=None, buf=bytearray(1)):
         if value is None:
-            self.i2c.readfrom_mem_into(self.address, register, buf)
+            self.__readfrom_mem_into(self.address, register, buf)
             return buf[0]
 
         pack_into("<b", buf, 0, value)
-        return self.i2c.writeto_mem(self.address, register, buf)
+        return self.__writeto_mem(self.address, register, buf)
 
     def _accel_fs(self, value):
         self._register_char(_ACCEL_CONFIG, value)

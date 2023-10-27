@@ -189,6 +189,8 @@ class AS5x47():
         self._angle_major = 0
         self._angle14 = 0
         self._angle14_prev = 0
+        
+        self.error = False
 
     # ------------------
     @micropython.native
@@ -235,8 +237,10 @@ class AS5x47():
         if (self._received_data[0] == 0xff and self._received_data[1] == 0xff) \
         or (self._received_data[0] == 0x00 and self._received_data[1] == 0x00):
             self._received_data[:] = self._received_data_prev[:]
+            self.error = True 
         else:
             self._received_data_prev[:] = self._received_data[:]
+            self.error = False 
 
     @micropython.native
     def readData(self, command):

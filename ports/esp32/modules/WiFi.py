@@ -156,7 +156,7 @@ def WiFi_while(ssid, password, ip="192.168.4.1", subnet="255.255.255.0", gateway
             #print("ifconfig:", (ip, subnet, gateway, dns))
             print("ifconfig:", wlan.ifconfig())
             print("wlan.status():", wlan_status(wlan.status()), end ='')
-            print(f" : WiFi connecting timeout is {CONNECTING_PAUSE_S} seconds, attempt {i} of {ATTEMPTS}.)")
+            print(f" : WiFi connecting timeout is {CONNECTING_PAUSE_S} seconds, attempt {i} of {ATTEMPTS}.")
             t = ticks_ms()
             
             WiFi_login(ssid, password, ip, subnet, gateway, dns)

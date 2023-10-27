@@ -102,7 +102,7 @@ class Stepper():
             self.pin_dir(0 ^ self._reverse_direction)
         else:
             self._direction = 0
-        #print(f'{self.name} Set direction:{delta} to {self._direction}')
+        #print(f'{self.name} Set direction:delta={delta} to self._direction={self._direction} with self._reverse_direction={self._reverse_direction} self.pin_dir()={self.pin_dir()}')
 
     def set_dir(self, delta:int):
         if delta > 0:
