@@ -52,6 +52,9 @@ def V_BAT():
 def esp32_Celsius():
     return round(Celsius_from_Fahrenheit(raw_temperature()), 1)
 
+def power_off():
+    pwr.value(0)  # battery off
+
 def check_PoE_thread():
     global power_off_s
     

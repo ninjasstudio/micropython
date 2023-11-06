@@ -187,7 +187,13 @@ class AS5x47():
         self.data_frame = struct(addressof(self._data_buff), Write_Data_Frame_struct, BIG_ENDIAN)
 
         self._angle_major = 0
-        self._angle14 = 0
+        # set _angle14 !!!
+        self.readAngleCom()
+        self.readAngleCom()
+        self.readAngleCom()
+####### self._angle14_prev = self._angle14
+####### if self._angle14_prev >= 8192:
+#######     self._angle14_prev = 0
         self._angle14_prev = 0
         
         self.error = False

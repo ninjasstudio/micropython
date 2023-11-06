@@ -37,16 +37,16 @@ def save_config_search(owl):
         print('Error writing config_search.py:', e)
 
 
-def save_config_PID(owl):
+def save_config_speed(owl):
     try:
-        with open("./config_PID.py", "w") as f:
-            f.write("owl_azim_mover_pid_tunings = {}\n".format(dumps(owl.azim.mover.pid.tunings)))
-            f.write("owl_azim_mover_pid_output_limits = {}\n".format(dumps(owl.azim.mover.pid.output_limits)))
-            f.write("owl_azim_mover_pid_output_pads = {}\n\n".format(dumps(owl.azim.mover.pid.output_pads)))
+        with open("./config_speed.py", "w") as f:
+            f.write("AZIM_angle_accel_decel = {}\n".format(dumps(owl.azim.mover.accel.angle_accel_decel)))
+            f.write("AZIM_rpm_low = {}\n".format(dumps(owl.azim.mover.rpm_low)))
+            f.write("AZIM_rpm_high = {}\n\n".format(dumps(owl.azim.mover.rpm_high)))
 
-            f.write("owl_elev_mover_pid_tunings = {}\n".format(dumps(owl.elev.mover.pid.tunings)))
-            f.write("owl_elev_mover_pid_output_limits = {}\n".format(dumps(owl.elev.mover.pid.output_limits)))
-            f.write("owl_elev_mover_pid_output_pads = {}\n".format(dumps(owl.elev.mover.pid.output_pads)))
+            f.write("ELEV_angle_accel_decel = {}\n".format(dumps(owl.elev.mover.accel.angle_accel_decel)))
+            f.write("ELEV_rpm_low = {}\n".format(dumps(owl.elev.mover.rpm_low)))
+            f.write("ELEV_rpm_high = {}\n".format(dumps(owl.elev.mover.rpm_high)))
             f.close()
     except Exception as e:
-        print('Error writing config_PID.py:', e)
+        print('Error writing config_speed.py:', e)

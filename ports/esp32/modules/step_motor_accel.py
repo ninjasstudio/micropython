@@ -17,6 +17,7 @@ class StepMotorAccel(StepperAngle):
 
         self.angle_now_func = angle_now_func  # external function
         self.accel = accel
+        self.reverse_direction = bool(reverse_direction)
 
         ### 1
         if isinstance(counter, Counter):
@@ -24,7 +25,7 @@ class StepMotorAccel(StepperAngle):
         else:
             self.counter = Counter(counter, src=self.pin_step, direction=self.pin_dir) #  , invert=reverse_direction)
         self.correct_counter()
-####        self.counter = -2
+
         ### 2
         self.pwm = PWM(self.pin_step, freq=freq, duty_u16=0)  # 0%
         #self.us_step_period = 0  # round(1_000_000 / freq)
@@ -36,6 +37,8 @@ class StepMotorAccel(StepperAngle):
         #print(self.__repr__())
 
         self.__angle_now = 0
+        
+        self.parking_position = None
 
     def __repr__(self):
         return f'StepMotorAccel(angle_now_func={self.angle_now_func}, accel={self.accel}):Counter({self.counter}):' + super().__repr__()
@@ -57,15 +60,16 @@ class StepMotorAccel(StepperAngle):
 
     def correct_counter(self):
         self.counter.value(-self.steps_now)
+        pass
 
     # -----------------------------------------------------------------------
     @property
     def steps_counter(self) -> int:
-        return -self.counter.get_value()
+        return -self.counter.get_value() if self.reverse_direction else self.counter.get_value()
 
     @property
     def angle_counter(self):
-        return round(self.steps_to_angle(-self.counter.get_value()), 2)
+        return round(self.steps_to_angle(self.steps_counter), 2)
 
     #------------------------------------------------------------------------------------------
     def freq(self):

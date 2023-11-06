@@ -5,7 +5,7 @@ from machine import Timer
 from _thread import start_new_thread
 import power
 
-BREAK_ANGLE = 10_000
+BREAK_ANGLE = 360 * 2 
 
 
 class Rotator():
@@ -14,7 +14,6 @@ class Rotator():
         self.elev = elev
         self.sensors = sensors
 
-        self.manual = False
         self.dt_handle_sensors = 0
         self.dt_handle_motors = 0
 
@@ -99,35 +98,25 @@ class Rotator():
 
             self.handle_sensors()
 
-            try:
-                if power.power_off_s > 0:
-                    try:
-                        if self.azim.parking_position is not None:
-                            self.azim.angle_target = self.azim.parking_position
-                    except:
-                        pass
-                    try:
-                        if self.elev.parking_position is not None:
-                            self.elev.angle_target = self.elev.parking_position
-                    except:
-                        pass
-            except:
-                pass
+            if power.power_off_s > 0:
+                if self.azim.parking_position is not None:
+                    self.azim.angle_target = self.azim.parking_position
+                if self.elev.parking_position is not None:
+                    self.elev.angle_target = self.elev.parking_position
 
-            if not self.manual:
-                if abs(self.azim.angle_counter - self.azim.angle_now) > BREAK_ANGLE:
-                    print(f'self.azim: {self.azim.direction} {self.azim.angle_counter} - {self.azim.angle_now} > {BREAK_ANGLE}°', self.azim.info())
-                    # self.azim.stop_pulses()
-                    self.azim.set_dir(-self.azim.direction)
-                else:
-                    self.azim.go()
+            if abs(self.azim.angle_counter - self.azim.angle_now) > BREAK_ANGLE:
+                #print(f'self.azim: {self.azim.direction} {self.azim.angle_counter} - {self.azim.angle_now} > {BREAK_ANGLE}°', self.azim.info())
+                self.azim.stop_pulses()
+                # self.azim.set_dir(-self.azim.direction)
+            else:
+                self.azim.go()
 
-                if abs(self.elev.angle_counter - self.elev.angle_now) > BREAK_ANGLE:
-                    print(f'self.elev: {self.elev.direction} {self.elev.angle_counter} - {self.elev.angle_now} > {BREAK_ANGLE}°', self.elev.info())
-                    # self.elev.stop_pulses()
-                    self.elev.set_dir(-self.elev.direction)
-                else:
-                    self.elev.go()
+            if abs(self.elev.angle_counter - self.elev.angle_now) > BREAK_ANGLE:
+                #print(f'self.elev: {self.elev.direction} {self.elev.angle_counter} - {self.elev.angle_now} > {BREAK_ANGLE}°', self.elev.info())
+                self.elev.stop_pulses()
+                # self.elev.set_dir(-self.elev.direction)
+            else:
+                self.elev.go()
 
     #         tmp = ticks_diff(ticks_ms(), t)
     #         if tmp > 0:

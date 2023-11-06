@@ -3,7 +3,7 @@ class Trapezoidal:
     # yapf: disable
     def __init__(
         self,
-        name='AAA',
+        name='',
         startpoint=0,
         setpoint=0,
         angle_accel_decel=5,
@@ -61,45 +61,45 @@ class Trapezoidal:
         )
         # yapf: enable
 
-    def write(self):
-        f = open("config_accel_decel.py", "x")
-        f.write("\n{}_accel_{}_angle_accel_decel = {}".format(
-            self.name.replace(' ', ''),
-            self.__class__.__name__,
-            self.angle_accel_decel
-            ))
-        f.write("\n{}_accel_{}_min_output = {}".format(
-            self.name.replace(' ', ''),
-            self.__class__.__name__,
-            self.min_output
-            ))
-        f.write("\n{}_accel_{}_max_output = {}".format(
-            self.name.replace(' ', ''),
-            self.__class__.__name__,
-            self.max_output
-            ))
-        f.close()
-
-    def read(self):
-        try:
-            import config_accel_decel
-            print(dir(config_accel_decel))
-            print(config_accel_decel.Elev_accel_Trapezoidal_angle_accel_decel)
-            s = 'config_accel_decel.'+self.name.replace(' ', '')+'_'+self.__class__.__name__+'_angle_accel_decel'
-            #s = 'a=config_accel_decel.'+self.name.replace(' ', '_')+'_'+self.__class__.__name__+'_angle_accel_decel'
-            # s = self.name.replace(' ', '_')+'_'+self.__class__.__name__+'_angle_accel_decel'
-            print('s=', s)
-            self.angle_accel_decel = eval(s)
-            exec(s)
-            print('self.angle_accel_decel=', self.angle_accel_decel)
-            self.angle_accel_decel = eval('config_accel_decel.'+self.name.replace(' ', '_')+'_'+self.__class__.__name__+'_angle_accel_decel')
-            print('self.angle_accel_decel=', self.angle_accel_decel)
-#             self.min_output =
-#             self.max_output =
-#
-            del (config_accel_decel)
-        except ImportError as e:
-            print("ImportError: import config_accel_decel: ", e)
+#     def write(self):
+#         f = open("config_speed.py", "x")
+#         f.write("\n{}_accel_{}_angle_accel_decel = {}".format(
+#             self.name.replace(' ', ''),
+#             self.__class__.__name__,
+#             self.angle_accel_decel
+#             ))
+#         f.write("\n{}_accel_{}_min_output = {}".format(
+#             self.name.replace(' ', ''),
+#             self.__class__.__name__,
+#             self.min_output
+#             ))
+#         f.write("\n{}_accel_{}_max_output = {}".format(
+#             self.name.replace(' ', ''),
+#             self.__class__.__name__,
+#             self.max_output
+#             ))
+#         f.close()
+# 
+#     def read(self):
+#         try:
+#             import config_speed
+#             print(dir(config_speed))
+#             print(config_speed.Elev_Trapezoidal_angle_accel_decel)
+#             s = 'config_speed.'+self.name.replace(' ', '')+'_'+self.__class__.__name__+'_angle_accel_decel'
+#             #s = 'a=config_speed.'+self.name.replace(' ', '_')+'_'+self.__class__.__name__+'_angle_accel_decel'
+#             # s = self.name.replace(' ', '_')+'_'+self.__class__.__name__+'_angle_accel_decel'
+#             print('s=', s)
+#             self.angle_accel_decel = eval(s)
+#             exec(s)
+#             print('self.angle_accel_decel=', self.angle_accel_decel)
+#             self.angle_accel_decel = eval('config_speed.'+self.name.replace(' ', '_')+'_'+self.__class__.__name__+'_angle_accel_decel')
+#             print('self.angle_accel_decel=', self.angle_accel_decel)
+# #             self.min_output =
+# #             self.max_output =
+# #
+#             del (config_speed)
+#         except ImportError as e:
+#             print("ImportError: import config_speed: ", e)
 
 # t = Trapezoidal(name="Elev  ")
 # t.write()
