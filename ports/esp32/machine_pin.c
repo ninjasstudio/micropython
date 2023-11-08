@@ -66,9 +66,10 @@ typedef struct _machine_pin_obj_cfg_t {
 STATIC machine_pin_obj_cfg_t machine_pin_obj_cfg_table[GPIO_NUM_MAX];
 STATIC bool inited_cfg_table = false;
 
-// Return the gpio_num_t index for a given pin or pin-irq object.
-#define PIN_OBJ_INDEX(self) ((self) - &machine_pin_obj_table[0])
-#define PIN_IRQ_OBJ_INDEX(self) ((self) - &machine_pin_irq_obj_table[0])
+// Return the gpio_num_t index for a given machine_pin_obj_t pointer.
+#define PIN_OBJ_PTR_INDEX(self) ((self) - &machine_pin_obj_table[0])
+// Return the machine_pin_obj_t pointer corresponding to a machine_pin_irq_obj_t pointer.
+#define PIN_OBJ_PTR_FROM_IRQ_OBJ_PTR(self) ((machine_pin_obj_t *)((uintptr_t)(self) - offsetof(machine_pin_obj_t, irq)))
 
 STATIC const machine_pin_obj_t *machine_pin_find_named(const mp_obj_dict_t *named_pins, mp_obj_t name) {
     const mp_map_t *named_map = &named_pins->map;
@@ -137,12 +138,12 @@ gpio_num_t machine_pin_get_id(mp_obj_t pin_in) {
 
 STATIC void machine_pin_print(const mp_print_t *print, mp_obj_t self_in, mp_print_kind_t kind) {
     machine_pin_obj_t *self = self_in;
-    mp_printf(print, "Pin(%u", PIN_OBJ_INDEX(self));
-    if (machine_pin_obj_cfg_table[PIN_OBJ_INDEX(self)].mode != -1) {
-        mp_printf(print, ", mode=%d", machine_pin_obj_cfg_table[PIN_OBJ_INDEX(self)].mode);
+    mp_printf(print, "Pin(%u", PIN_OBJ_PTR_INDEX(self));
+    if (machine_pin_obj_cfg_table[PIN_OBJ_PTR_INDEX(self)].mode != -1) {
+        mp_printf(print, ", mode=%d", machine_pin_obj_cfg_table[PIN_OBJ_PTR_INDEX(self)].mode);
     }
-    if (machine_pin_obj_cfg_table[PIN_OBJ_INDEX(self)].pull != -1) {
-        mp_printf(print, ", pull=%d", machine_pin_obj_cfg_table[PIN_OBJ_INDEX(self)].pull);
+    if (machine_pin_obj_cfg_table[PIN_OBJ_PTR_INDEX(self)].pull != -1) {
+        mp_printf(print, ", pull=%d", machine_pin_obj_cfg_table[PIN_OBJ_PTR_INDEX(self)].pull);
     }
     mp_printf(print, ")");
 }
@@ -203,8 +204,8 @@ STATIC mp_obj_t machine_pin_obj_init_helper(const machine_pin_obj_t *self, size_
             mp_raise_ValueError(MP_ERROR_TEXT("pin can only be input"));
         }
         #endif
-        gpio_set_direction(PIN_OBJ_INDEX(self), pin_io_mode);
-        machine_pin_obj_cfg_table[PIN_OBJ_INDEX(self)].mode = pin_io_mode;
+        gpio_set_direction(index, pin_io_mode);
+        machine_pin_obj_cfg_table[PIN_OBJ_PTR_INDEX(self)].mode = pin_io_mode;
     }
 
     // configure pull
@@ -223,7 +224,7 @@ STATIC mp_obj_t machine_pin_obj_init_helper(const machine_pin_obj_t *self, size_
         } else {
             gpio_pullup_dis(index);
         }
-        machine_pin_obj_cfg_table[PIN_OBJ_INDEX(self)].pull = mode;
+        machine_pin_obj_cfg_table[PIN_OBJ_PTR_INDEX(self)].pull = mode;
     }
 
     // configure pad hold
