@@ -27,6 +27,9 @@
  * THE SOFTWARE.
  */
 
+// This file is never compiled standalone, it's included directly from
+// extmod/machine_pwm.c via MICROPY_PY_MACHINE_PWM_INCLUDEFILE.
+
 #include <math.h>
 
 #define MP_PRN_LEVEL 0 // 1000 // show all messages
