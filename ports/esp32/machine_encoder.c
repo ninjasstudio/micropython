@@ -62,6 +62,8 @@ https://github.com/espressif/esp-idf/tree/master/examples/peripherals/pcnt/rotar
 
 #include "machine_encoder.h"
 
+extern const mp_obj_type_t machine_pin_type;
+
 #define GET_INT mp_obj_get_int_truncated
 // #define GET_INT mp_obj_get_ll_int // need PR: py\obj.c: Get 64-bit integer arg. #80896
 
