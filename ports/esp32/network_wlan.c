@@ -333,10 +333,14 @@ STATIC mp_obj_t network_wlan_status(size_t n_args, const mp_obj_t *args) {
             if (wifi_sta_connected) {
                 // Happy path, connected with IP
                 return MP_OBJ_NEW_SMALL_INT(STAT_GOT_IP);
-            } else if ((wifi_sta_disconn_reason == WIFI_REASON_NO_AP_FOUND) || (wifi_sta_disconn_reason == WIFI_REASON_AUTH_FAIL)) {
-                return MP_OBJ_NEW_SMALL_INT(wifi_sta_disconn_reason);
-            } else if (wifi_sta_disconn_reason == WIFI_REASON_CONNECTION_FAIL) {
+            } else if (wifi_sta_disconn_reason == WIFI_REASON_NO_AP_FOUND) {
+                return MP_OBJ_NEW_SMALL_INT(WIFI_REASON_NO_AP_FOUND);
+            } else if ((wifi_sta_disconn_reason == WIFI_REASON_AUTH_FAIL) || (wifi_sta_disconn_reason == WIFI_REASON_CONNECTION_FAIL)) {
+                // wrong password
                 return MP_OBJ_NEW_SMALL_INT(WIFI_REASON_AUTH_FAIL);
+            } else if (wifi_sta_disconn_reason == WIFI_REASON_ASSOC_LEAVE) {
+                // After wlan.disconnect()
+                return MP_OBJ_NEW_SMALL_INT(STAT_IDLE);
             } else if (wifi_sta_connect_requested
                        && (conf_wifi_sta_reconnects == 0
                            || wifi_sta_reconnects < conf_wifi_sta_reconnects)) {
