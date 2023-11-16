@@ -335,6 +335,19 @@ possible at the same frequency.
 
 See more examples in the :ref:`esp32_pwm` tutorial.
 
+DAC (digital to analog conversion)
+----------------------------------
+
+On the ESP32, DAC functionality is available on pins 25, 26.
+On the ESP32S2, DAC functionality is available on pins 17, 18.
+
+Use the DAC::
+
+    from machine import DAC, Pin
+
+    dac = DAC(Pin(25))  # create an DAC object acting on a pin
+    dac.write(128)      # set a raw analog value in the range 0-255, 50% now
+
 ADC (analog to digital conversion)
 ----------------------------------
 
