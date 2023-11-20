@@ -4,7 +4,7 @@ from gc import collect, mem_free
 from sys import print_exception
 from ujson import dumps, loads
 from network import WLAN, AP_IF, STA_IF
-from WiFi import WiFi_login, save_config_WiFi  #, WiFi_start
+from WiFi import save_config_WiFi
 
 from saves import *
 
@@ -218,7 +218,7 @@ def do_save_config_WiFi(server, arg, owl):
     show_config_WiFi_page(server, arg, owl)
     #sleep_ms(1000)
     ifconfig1 = wlan_sta.ifconfig()
-    WiFi_login(config_WiFi.SSID, config_WiFi.PASSWORD, config_WiFi.OWL_IP, config_WiFi.OWL_SUBNET, config_WiFi.OWL_GATEWAY, config_WiFi.OWL_DNS)
+    # WiFi_login(config_WiFi.SSID, config_WiFi.PASSWORD, config_WiFi.OWL_IP, config_WiFi.OWL_SUBNET, config_WiFi.OWL_GATEWAY, config_WiFi.OWL_DNS)
     if wlan_sta.isconnected():
         save_config_WiFi(config_WiFi.SSID, config_WiFi.PASSWORD, (config_WiFi.OWL_IP, config_WiFi.OWL_SUBNET, config_WiFi.OWL_GATEWAY, config_WiFi.OWL_DNS))
     else:
@@ -230,12 +230,8 @@ def do_save_config_WiFi(server, arg, owl):
         config_WiFi.OWL_SUBNET = restore_WiFi.OWL_SUBNET
         config_WiFi.OWL_GATEWAY = restore_WiFi.OWL_GATEWAY
         config_WiFi.OWL_DNS = restore_WiFi.OWL_DNS
-        WiFi_login(config_WiFi.SSID, config_WiFi.PASSWORD, config_WiFi.OWL_IP, config_WiFi.OWL_SUBNET, config_WiFi.OWL_GATEWAY, config_WiFi.OWL_DNS)
+        # WiFi_login(config_WiFi.SSID, config_WiFi.PASSWORD, config_WiFi.OWL_IP, config_WiFi.OWL_SUBNET, config_WiFi.OWL_GATEWAY, config_WiFi.OWL_DNS)
         del restore_WiFi
-    if USE_MICROPYSERVER:
-        web_server.end()
-    if USE_TXTSERVER:
-        txt_server.end()
     ifconfig2 = wlan_sta.ifconfig()
     if ifconfig1[0] != ifconfig2[0]:
         print('IP адрес изменен с {} на {}!'.format(ifconfig1[0], ifconfig2[0]))
@@ -290,11 +286,14 @@ def arg2val(arg):
         try:
             val = loads(s)
         except ValueError as e:
-            print('arg=', arg, 's=', s, 'Error:', e)
+            # print('arg=', arg, 's=', s, 'val=', val,'Error:', e)
             try:
                 val = eval(s)
+            except SyntaxError as e:
+                # print('arg=', arg, 's=', s, 'val=', val,'Error:', e)
+                pass
             except Exception as e:
-                print('arg=', arg, 's=', s, 'Error:', e)
+                # print('arg=', arg, 's=', s, 'val=', val,'Error:', e)
                 val = s
     # print(f'arg=>{arg}< s=>{s}< val=>{val}< type(val)={type(val)}')
     return val

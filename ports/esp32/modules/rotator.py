@@ -98,7 +98,7 @@ class Rotator():
 
             self.handle_sensors()
 
-            if power.power_off_s > 0:
+            if power.seconds_after_power_off > 0:
                 if self.azim.parking_position is not None:
                     self.azim.angle_target = self.azim.parking_position
                 if self.elev.parking_position is not None:
