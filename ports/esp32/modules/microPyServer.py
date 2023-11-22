@@ -3,6 +3,7 @@ Based on
 MicroPyServer is a simple HTTP server for MicroPython projects.
 @see https://github.com/troublegum/micropyserver
 """
+import network
 from errno import EAGAIN
 from io import StringIO
 from re import compile
@@ -33,7 +34,7 @@ _arg_regexp = compile(b"^[A-Z]+\\s+(/[-a-zA-Z0-9_.\?\&\=%+\(\[,\]\)]*)")
 
 class MicroPyServer(object):
     def __init__(self, host="", port=80, cargo=None):
-        self.host = host
+        self._host = None
         self.port = port
 
         self._routes = {}
@@ -54,6 +55,19 @@ class MicroPyServer(object):
         #            3  # all response data ready to send
 
         self.empty_bufs()
+        
+    @property
+    def host(self):
+        wlan_sta = network.WLAN(network.STA_IF)
+        if wlan_sta.isconnected():
+            self._host = wlan_sta.ifconfig()[0]
+        else:
+            wlan_ap = network.WLAN(network.AP_IF)
+            if wlan_ap.active():
+                self._host = wlan_ap.ifconfig()[0]
+            else:
+                self._host = None
+        return self._host
 
     def empty_out_buf(self):
         self._out_buf = b""
@@ -78,7 +92,7 @@ class MicroPyServer(object):
         try:
             return self._routes[path + b'\x00' + method], arg
         except KeyError as e:
-            print("{}:{} MicroPyServer KeyError:{}:".format(self.host, self.port, arg), e)
+            print("{}:{} MicroPyServer KeyError:{}:".format(self._host, self.port, arg), e)
             return None, arg
 
     def find_route_txt(self, path):
@@ -88,23 +102,24 @@ class MicroPyServer(object):
     def begin(self):
         # Call it before the main loop
         try:
-            self._socket = open_server_socket(self.host, self.port, backlog=_BACKLOG)
-            print("{}:{} MicroPyServer started".format(self.host, self.port))
+            if self.host is not None:
+                self._socket = open_server_socket(self._host, self.port, backlog=_BACKLOG)
+                print("{}:{} MicroPyServer started".format(self._host, self.port))
         except Exception as e:
-            print("{}:{} MicroPyServer error: open_server_socket():".format(self.host, self.port), e)
+            print("{}:{} MicroPyServer error: open_server_socket():".format(self._host, self.port), e)
             self._socket = None  # перестраховка
         return self._socket
 
     def end(self):
         self.connect_close()
         if self._socket is not None:
-            print("{}:{} MicroPyServer close socket".format(self.host, self.port), self._socket.fileno())
+            print("{}:{} MicroPyServer close socket".format(self._host, self.port), self._socket.fileno())
             self._socket.close()
             self._socket = None
 
     def connect_close(self):
         if self._skt is not None:
-            #print("{}:{} MicroPyServer close connection".format(self.host, self.port), self._skt.fileno())
+            #print("{}:{} MicroPyServer close connection".format(self._host, self.port), self._skt.fileno())
             self._skt.close()
         self._skt = None
         self.state = 0
@@ -116,12 +131,12 @@ class MicroPyServer(object):
             self._skt.settimeout(0)  # non blocking
             #self._skt.settimeout(0.5) # TIMEDOUT
             #self._skt.settimeout(None) # blocking
-            #print("{}:{} MicroPyServer accept connection {} from".format(self.host, self.port, self._skt.fileno()), self._client_address)
+            #print("{}:{} MicroPyServer accept connection {} from".format(self._host, self.port, self._skt.fileno()), self._client_address)
             self.state = 1
             return True
         except Exception as e:
             if e.args[0] not in (EAGAIN, 10035):
-                print("{}:{} MicroPyServer socket {} error: socket.accept():".format(self.host, self.port, self._socket.fileno()), e)
+                print("{}:{} MicroPyServer socket {} error: socket.accept():".format(self._host, self.port, self._socket.fileno()), e)
                 self.connect_close()
         return False
 
@@ -129,7 +144,7 @@ class MicroPyServer(object):
         try:
             received = self._skt.recv(1024)
             if received == b'':
-                print("{}:{} MicroPyServer connection {} error: received == b''".format(self.host, self.port, self._skt.fileno()), self._skt.fileno())
+                print("{}:{} MicroPyServer connection {} error: received == b''".format(self._host, self.port, self._skt.fileno()), self._skt.fileno())
                 self.connect_close()
                 return False
             self._success_time = time()
@@ -138,7 +153,7 @@ class MicroPyServer(object):
             return True
         except Exception as e:
             if e.args[0] not in (EAGAIN, 10035):
-                print("{}:{} MicroPyServer connection {} error: receive:".format(self.host, self.port, self._skt.fileno()), e)
+                print("{}:{} MicroPyServer connection {} error: receive:".format(self._host, self.port, self._skt.fileno()), e)
                 self.connect_close()
             return False
 
@@ -154,7 +169,7 @@ class MicroPyServer(object):
                     #sent = self._skt.send(mv[self._out_index:self._out_index + 512])
                     #sent = self._skt.send(mv[self._out_index:len_out_buf])
                     if sent == 0:
-                        print("{}:{} MicroPyServer connection {} error: sent == 0:".format(self.host, self.port, self._skt.fileno()), sent)
+                        print("{}:{} MicroPyServer connection {} error: sent == 0:".format(self._host, self.port, self._skt.fileno()), sent)
                         self.connect_close()
                         return
                     self._success_time = time()
@@ -165,7 +180,7 @@ class MicroPyServer(object):
                             self.connect_close()
                 except Exception as e:
                     if e.args[0] not in (EAGAIN, 10035):
-                        print("{}:{} MicroPyServer connection {} error: send:".format(self.host, self.port, self._skt.fileno()), e)
+                        print("{}:{} MicroPyServer connection {} error: send:".format(self._host, self.port, self._skt.fileno()), e)
                         self.connect_close()
             else:
                 if self.state == 3:
@@ -174,6 +189,9 @@ class MicroPyServer(object):
 
     def execute(self):
         # Call it in the main loop
+        if self._host != self.host:
+            self.end()
+        
         if self._socket is None:
             if self.begin() is None:
                 return
@@ -192,6 +210,8 @@ class MicroPyServer(object):
             request = self._in_buf[:eol_pos]
             self._in_buf = self._in_buf[eol_pos + 4:]
             route, arg = self.find_route(request)
+            # print('route, arg', route, arg, request)
+            # print('request', request)
             if route:
                 route(self, arg, self.cargo)
                 self.state = 3
@@ -256,6 +276,9 @@ class MicroPyServer(object):
 
     def execute_txt(self):
         # Call it in the main loop
+        if self._host != self.host:
+            self.end()
+        
         if self._socket is None:
             if self.begin() is None:
                 return

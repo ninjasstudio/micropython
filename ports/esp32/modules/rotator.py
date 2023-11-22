@@ -182,9 +182,19 @@ class Rotator():
     def is_ready(self):
         return self.azim.is_ready() and self.elev.is_ready()
 
-    def wait(self):
+    def wait(self, prn=False):
+        prn and print('r.targets', self.targets)
+        prn and print('r.angles', self.angles, end='\r')
+        t = ticks_ms()
         while not self.is_ready():
+            if ticks_diff(ticks_ms(), t) > 300:
+                t = ticks_ms()
+                prn and print('r.angles', self.angles, end='                                                        \r')
+                #print('r.angles', r.angles, r.elev.info(), r.elev.angle_counter, end='                                                        \r')
+                #print('r.angles', r.angles, r.azim.angle_counter, r.elev.angle_counter, end='                                                        \r')
             sleep_ms(10)
+        prn and print('r.angles', self.angles, '                                                        ')
+        prn and print('!READY!')
 
     @property
     #@micropython.native

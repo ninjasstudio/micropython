@@ -4,7 +4,7 @@ from gc import collect, mem_free
 from sys import print_exception
 from ujson import dumps, loads
 from network import WLAN, AP_IF, STA_IF
-from WiFi import save_config_WiFi
+import WiFi 
 
 from saves import *
 
@@ -29,9 +29,6 @@ try:
     import config_WiFi
 except ImportError:
     pass
-
-wlan_ap = WLAN(AP_IF)
-wlan_sta = WLAN(STA_IF)
 
 file = open("index.html")
 html = file.read()
@@ -60,8 +57,7 @@ file.close()
 
 
 def show_index_page(server, arg, owl):
-    #if wlan.ifconfig()[0] == '192.168.4.1':
-    if wlan_ap.active():
+    if WiFi.wlan_ap.active():
         show_config_WiFi_page(server, arg, owl)
         return
     
@@ -145,13 +141,15 @@ def show_config_page(server, arg, owl):
 
 def show_config_WiFi_page(server, arg, owl):
     collect()
+    s1 = str(WiFi.WiFi_info()) +'<br>' + str(WiFi.ssid_list)
     s = html_config_WiFi.format(
-        config_WiFi.SSID,  #
-        config_WiFi.PASSWORD,  #
-        config_WiFi.OWL_IP,  #
-        config_WiFi.OWL_SUBNET,  #
-        config_WiFi.OWL_GATEWAY,  #
-        config_WiFi.OWL_DNS
+        s1,  #
+        WiFi.SSID,  #
+        WiFi.PASSWORD,  #
+        WiFi.OWL_IP,  #
+        WiFi.OWL_SUBNET,  #
+        WiFi.OWL_GATEWAY,  #
+        WiFi.OWL_DNS
         )
     collect()
     server.out(s)
@@ -214,35 +212,24 @@ def do_save_config_speed(server, arg, owl):
     show_config_speed_page(server, arg, owl)
 
 
-def do_save_config_WiFi(server, arg, owl):
-    show_config_WiFi_page(server, arg, owl)
-    #sleep_ms(1000)
-    ifconfig1 = wlan_sta.ifconfig()
+def do_connect_config_WiFi(server, arg, owl):
     # WiFi_login(config_WiFi.SSID, config_WiFi.PASSWORD, config_WiFi.OWL_IP, config_WiFi.OWL_SUBNET, config_WiFi.OWL_GATEWAY, config_WiFi.OWL_DNS)
-    if wlan_sta.isconnected():
-        save_config_WiFi(config_WiFi.SSID, config_WiFi.PASSWORD, (config_WiFi.OWL_IP, config_WiFi.OWL_SUBNET, config_WiFi.OWL_GATEWAY, config_WiFi.OWL_DNS))
-    else:
-        import config_WiFi as restore_WiFi
-        collect()
-        config_WiFi.SSID = restore_WiFi.SSID
-        config_WiFi.PASSWORD = restore_WiFi.PASSWORD
-        config_WiFi.OWL_IP = restore_WiFi.OWL_IP
-        config_WiFi.OWL_SUBNET = restore_WiFi.OWL_SUBNET
-        config_WiFi.OWL_GATEWAY = restore_WiFi.OWL_GATEWAY
-        config_WiFi.OWL_DNS = restore_WiFi.OWL_DNS
-        # WiFi_login(config_WiFi.SSID, config_WiFi.PASSWORD, config_WiFi.OWL_IP, config_WiFi.OWL_SUBNET, config_WiFi.OWL_GATEWAY, config_WiFi.OWL_DNS)
-        del restore_WiFi
-    ifconfig2 = wlan_sta.ifconfig()
-    if ifconfig1[0] != ifconfig2[0]:
-        print('IP адрес изменен с {} на {}!'.format(ifconfig1[0], ifconfig2[0]))
+    WiFi.save_config_WiFi(WiFi.SSID, WiFi.PASSWORD, (WiFi.OWL_IP, WiFi.OWL_SUBNET, WiFi.OWL_GATEWAY, WiFi.OWL_DNS))
+    WiFi.net_state = WiFi.NET_STA_INIT
     show_config_WiFi_page(server, arg, owl)
 
+
+def do_save_config_WiFi(server, arg, owl):
+    if WiFi.wlan_sta.isconnected():
+        WiFi.save_config_WiFi(WiFi.SSID, WiFi.PASSWORD, (WiFi.OWL_IP, WiFi.OWL_SUBNET, WiFi.OWL_GATEWAY, WiFi.OWL_DNS))
+    show_config_WiFi_page(server, arg, owl)
+    
 
 #--------------------------------------------------------
 def do_handler(server, arg, owl):
     try:
         owl.mode = int(arg[-1:])
-        # print('owl.mode=', owl.mode, 'arg=', arg)
+        #print('owl.mode=', owl.mode, 'arg=', arg)
         if owl.mode > owl.MD_MANUAL:
             owl.autorefresh = False
         show_index_page(server, arg, owl)
@@ -286,16 +273,17 @@ def arg2val(arg):
         try:
             val = loads(s)
         except ValueError as e:
-            # print('arg=', arg, 's=', s, 'val=', val,'Error:', e)
+            #print('C arg=', arg, 's=', s, 'val=', val,'Error:', e)
             try:
                 val = eval(s)
             except SyntaxError as e:
-                # print('arg=', arg, 's=', s, 'val=', val,'Error:', e)
-                pass
+                #print('B arg=', arg, 's=', s, 'val=', val,'Error:', e)
+                if s.count('.') == 3: # net adress or mask
+                    val = s
             except Exception as e:
-                # print('arg=', arg, 's=', s, 'val=', val,'Error:', e)
+                #print('C arg=', arg, 's=', s, 'val=', val,'Error:', e)
                 val = s
-    # print(f'arg=>{arg}< s=>{s}< val=>{val}< type(val)={type(val)}')
+    #print(f'arg=>{arg}< s=>{s}< val=>{val}< type(val)={type(val)}')
     return val
 
 
@@ -334,9 +322,10 @@ def do_get_config(server, arg, owl):
         changed = False
         if val is not None:
             if arg.find("ROUTEROS_IP=") >= 0:
-                if config.ROUTEROS_IP != val:
-                    config.ROUTEROS_IP = val
-                    changed = True
+                if val.count('.') == 3:
+                    if config.ROUTEROS_IP != val:
+                        config.ROUTEROS_IP = val
+                        changed = True
             elif arg.find("ROUTEROS_USER=") >= 0:
                 if config.ROUTEROS_USER != val:
                     config.ROUTEROS_USER = val
@@ -350,7 +339,7 @@ def do_get_config(server, arg, owl):
                 owl.RADIO_NAME = val
                 if owl.ros_api:
                     owl.ros_api.radio_name = b"=radio-name=" + config.RADIO_NAME
-                    print('do_get_config():ros_api.radio_name', owl.ros_api.radio_name)
+                    #print('do_get_config():ros_api.radio_name', owl.ros_api.radio_name)
         if changed:
             owl.deinit_ros_api()
             owl.init_ros_api(config.ROUTEROS_IP, config.ROUTEROS_USER, config.ROUTEROS_PASSWORD)
@@ -361,19 +350,26 @@ def do_get_config(server, arg, owl):
 
 def do_get_config_WiFi(server, arg, owl):
     val = arg2val(arg)
+    #print('val, arg', val, arg)
     if val is not None:
         if arg.find("SSID=") >= 0:
-            config_WiFi.SSID = val
+            if val in WiFi.ssid_list:
+                WiFi.SSID = val
         elif arg.find("PASSWORD=") >= 0:
-            config_WiFi.PASSWORD = val
+            WiFi.PASSWORD = val
         elif arg.find("OWL_IP=") >= 0:
-            config_WiFi.OWL_IP = val
+            val = val.lower()
+            if val.count('.') == 3 or val == 'dhcp':
+                WiFi.OWL_IP = val
         elif arg.find("OWL_SUBNET=") >= 0:
-            config_WiFi.OWL_SUBNET = val
+            if val.count('.') == 3:
+                WiFi.OWL_SUBNET = val
         elif arg.find("OWL_GATEWAY=") >= 0:
-            config_WiFi.OWL_GATEWAY = val
+            if val.count('.') == 3:
+                WiFi.OWL_GATEWAY = val
         elif arg.find("OWL_DNS=") >= 0:
-            config_WiFi.OWL_DNS = val
+            if val.count('.') == 3:
+                WiFi.OWL_DNS = val
         else:
             raise OwlError
     show_config_WiFi_page(server, arg, owl)

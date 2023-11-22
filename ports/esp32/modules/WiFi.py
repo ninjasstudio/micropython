@@ -18,11 +18,11 @@ from _thread import start_new_thread
 from machine import Timer
 import network
 
-PRINT = False # True # 
+PRINT = False #  True #  
 
-CONNECTING_TIMEOUT = 10 # 45 seconds
+CONNECTING_TIMEOUT = 60 # 60 seconds
 
-SSID = 'SWITCH_SOVA'
+SSID = 'TEST_SOVA'
 PASSWORD = 'PASSWORD'
 
 DEFAULT_IP = '192.168.1.111'
@@ -30,10 +30,10 @@ DEFAULT_SUBNET = '255.255.255.0'
 DEFAULT_GATEWAY = '192.168.1.1'
 DEFAULT_DNS = DEFAULT_GATEWAY
 
-IP = 'dhcp'
-SUBNET = ''
-GATEWAY = ''
-DNS = ''
+OWL_IP = 'dhcp'
+OWL_SUBNET = ''
+OWL_GATEWAY = ''
+OWL_DNS = ''
 
 NET_STA_IMPORT = 0
 
@@ -45,17 +45,20 @@ NET_AP_CONNECTING = -2
 NET_AP_GOT_IP = -3
 
 net_state = NET_STA_IMPORT
-net_time = 0
+net_time = time()
 
 wlan_ap = network.WLAN(network.AP_IF)
 wlan_sta = network.WLAN(network.STA_IF)
+wlan_sta.active(True)
 wlan_status = None
+
+ssid_list = []
 
 def save_config_WiFi(ssid, password, ifconfig):
     try:
         print("Save './config_WiFi.py'")
         with open("./config_WiFi.py", "w") as f:
-            f.write(f"SSID = '{ssid}'\n")
+            f.write(f"SSID = '{ssid}'  # internal Sova Mikrotik WiFi\n")
             f.write(f"PASSWORD = '{password}'\n\n")
             f.write(f"OWL_IP = '{ifconfig[0]}'\n")
             f.write(f"#OWL_IP = 'dhcp'\n")
@@ -74,12 +77,16 @@ def WiFi_info():
     else:
         return (net_state, wlan_ap.status(), wlan_ap.active(), wlan_ap.isconnected(), wlan_ap.ifconfig(), time() - net_time)
 
-def WiFi_connect():
+def WiFi_connect(prn=False):
+    global PRINT
     global wlan_sta, wlan_status
     global SSID, PASSWORD
-    global IP, SUBNET, GATEWAY, DNS
+    global OWL_IP, OWL_SUBNET, OWL_GATEWAY, OWL_DNS
     global DEFAULT_IP, DEFAULT_SUBNET, DEFAULT_GATEWAY, DEFAULT_DNS
     global net_state, net_time
+    
+    if prn:
+        PRINT = prn
 
     if net_state == NET_STA_IMPORT:
         try:
@@ -100,21 +107,24 @@ def WiFi_connect():
             import config_WiFi
             SSID = config_WiFi.SSID
             PASSWORD = config_WiFi.PASSWORD
-            IP = config_WiFi.OWL_IP
-            SUBNET = config_WiFi.OWL_SUBNET
-            GATEWAY = config_WiFi.OWL_GATEWAY
-            DNS = config_WiFi.OWL_DNS
+            OWL_IP = config_WiFi.OWL_IP
+            OWL_SUBNET = config_WiFi.OWL_SUBNET
+            OWL_GATEWAY = config_WiFi.OWL_GATEWAY
+            OWL_DNS = config_WiFi.OWL_DNS
             del config_WiFi
             # collect()
         except (ImportError, AttributeError) as e:
             print_exception(e)
-            IP = 'dhcp'
+            OWL_IP = 'dhcp'
 
-        net_state = NET_STA_INIT
-        if IP.lower() == 'dhcp':
-            PRINT and print('imported', SSID, PASSWORD, IP)
+        network.hostname('ESP-' + SSID.replace(' ','_'))
+
+        if OWL_IP.lower() == 'dhcp':
+            PRINT and print('import', SSID, PASSWORD, OWL_IP)
         else:
-            PRINT and print('imported', SSID, PASSWORD, IP, SUBNET, GATEWAY, DNS)
+            PRINT and print('import', SSID, PASSWORD, OWL_IP, OWL_SUBNET, OWL_GATEWAY, OWL_DNS)
+        net_state = NET_STA_INIT
+        PRINT and print('NET_STA_INIT')
 
     if net_state == NET_STA_INIT:
         if wlan_ap.active():
@@ -122,14 +132,15 @@ def WiFi_connect():
         if wlan_sta.config('ssid') != SSID:
             if wlan_sta.isconnected():
                 wlan_sta.disconnect()
+                PRINT and print('wlan_sta.disconnect()')
 
-        if IP.lower() == 'dhcp':
+        if OWL_IP.lower() == 'dhcp':
             if wlan_sta.ifconfig()[0] != '0.0.0.0':
                 if wlan_sta.isconnected():
                     wlan_sta.disconnect()
                 wlan_sta.ifconfig(('dhcp'))
         else:
-            wlan_sta.ifconfig((IP, SUBNET, GATEWAY, DNS))
+            wlan_sta.ifconfig((OWL_IP, OWL_SUBNET, OWL_GATEWAY, OWL_DNS))
         wlan_sta.active(True)
         if not wlan_sta.isconnected():
             PRINT and print('connecting to network...', SSID)
@@ -148,53 +159,47 @@ def WiFi_connect():
         if wlan_sta.status() == network.STAT_GOT_IP:
             net_state = NET_STA_GOT_IP
             PRINT and print('NET_STA_GOT_IP')
-        else: 
+        else:
             if time() - net_time >= CONNECTING_TIMEOUT * 2:
                 net_state = NET_AP_INIT
                 PRINT and print('NET_AP_INIT')
             elif time() - net_time >= CONNECTING_TIMEOUT:
-                IP, SUBNET, GATEWAY, DNS = DEFAULT_IP, DEFAULT_SUBNET, DEFAULT_GATEWAY, DEFAULT_DNS
-                net_state = NET_STA_INIT
-                PRINT and print('NET_STA_INIT: DEFAULT_IP')
+                if wlan_sta.status() != network.STAT_NO_AP_FOUND:
+                    if OWL_IP != DEFAULT_IP:
+                        OWL_IP, OWL_SUBNET, OWL_GATEWAY, OWL_DNS = DEFAULT_IP, DEFAULT_SUBNET, DEFAULT_GATEWAY, DEFAULT_DNS
+                        net_state = NET_STA_INIT
+                        PRINT and print('NET_STA_INIT: DEFAULT_IP')
     elif net_state == NET_STA_GOT_IP:
         if wlan_sta.status() != network.STAT_GOT_IP:
             net_state = NET_STA_CONNECTING
+            PRINT and print('NET_STA_CONNECTING')
     elif net_state == NET_AP_INIT:
         if wlan_sta.active():
             if wlan_sta.isconnected():
                 wlan_sta.disconnect()
-            wlan_sta.active(False)
+            ### wlan_sta.active(False)
         wlan_ap.active(True)
-        wlan_ap.config(ssid='ESP-AP')
+        wlan_ap.config(ssid='ESP-AP-' + SSID)
         wlan_ap.config(max_clients=5)
         net_time = time()
         net_state = NET_AP_CONNECTING
         PRINT and print('NET_AP_CONNECTING')
 
-    if not wlan_sta.active():
-        if net_state > NET_STA_INIT:
-            net_state = NET_STA_INIT
-            PRINT and print('NET_STA_INIT')
+    #if not wlan_sta.active():
+#     if not wlan_sta.isconnected():
+#         if net_state > NET_STA_INIT:
+#             net_state = NET_STA_INIT
+#             PRINT and print('NET_STA_INIT')
 
     if wlan_status != wlan_sta.status():
         PRINT and print('wlan_sta.status()', wlan_status, 'changed to', wlan_sta.status(), wlan_sta.active(), wlan_sta.isconnected(), wlan_sta.ifconfig())
         wlan_status = wlan_sta.status()
 
     if wlan_status == network.STAT_NO_AP_FOUND:
-        net_state = NET_AP_INIT
-        PRINT and print('NET_AP_INIT')
-#     elif wlan_status == network.STAT_CONNECTING:
-#         if time() - net_time >= CONNECTING_TIMEOUT * 2:
-#             net_state = NET_AP_INIT
-#             PRINT and print('NET_AP_INIT')
-#         elif time() - net_time >= CONNECTING_TIMEOUT:
-#             IP, SUBNET, GATEWAY, DNS = DEFAULT_IP, DEFAULT_SUBNET, DEFAULT_GATEWAY, DEFAULT_DNS
-#             net_state = NET_STA_INIT
-#             PRINT and print('NET_STA_INIT: DEFAULT_IP')
-#     elif wlan_status == network.STAT_IDLE:
-#         if time() - net_time >= CONNECTING_TIMEOUT + 10:
-#             net_state = NET_STA_INIT
-#             PRINT and print('NET_STA_REINIT')
+        if net_state >= NET_STA_INIT:
+            if time() - net_time >= CONNECTING_TIMEOUT * 2:
+                net_state = NET_AP_INIT
+                PRINT and print('NET_AP_INIT: STAT_NO_AP_FOUND')
     elif wlan_status == network.STAT_GOT_IP:
         net_state == NET_STA_GOT_IP
         #  PRINT and print('NET_STA_GOT_IP')
@@ -220,6 +225,25 @@ def check_WiFi_connect(timer=None):
         __wifi_info = i
         PRINT and print(i)
 
+__scan_time = 0
+
+def WiFi_scan():
+    global wlan_ap, wlan_sta
+    global ssid_list, __scan_time
+    if wlan_ap.active():
+        if time() - __scan_time >= 15:
+            __scan_time = time()
+            ssid_list = []
+            wlan_sta.active(False)  # ???
+            wlan_sta.active(True)  # ???
+            scan = wlan_sta.scan()
+            #print('scan', scan)
+            for s in scan:
+                if len(s[0]):
+                    ssid_list.append(s[0].decode())
+                    #print('s[0].decode()', s[0].decode())
+        
+    
 def WiFi_test(prn=True):
     global PRINT
     PRINT = prn
@@ -229,3 +253,6 @@ def WiFi_test(prn=True):
 
 if __name__ == "__main__":
     WiFi_test()
+#     while 1:
+#         WiFi_scan()
+    
