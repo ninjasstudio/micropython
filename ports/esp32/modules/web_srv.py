@@ -129,7 +129,9 @@ def show_index_page(server, arg, owl):
 
 def show_config_page(server, arg, owl):
     collect()
+    s1 = "СРШ: " + dumps(owl.value_now)
     s = html_config.format(
+        s1,  #
         config.ROUTEROS_IP,  #  
         config.ROUTEROS_USER,  #  
         config.ROUTEROS_PASSWORD,  #  
