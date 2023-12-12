@@ -4,7 +4,7 @@ from gc import collect, mem_free
 from sys import print_exception
 from ujson import dumps, loads
 from network import WLAN, AP_IF, STA_IF
-import WiFi 
+import WiFi
 
 from saves import *
 
@@ -60,7 +60,7 @@ def show_index_page(server, arg, owl):
     if WiFi.wlan_ap.active():
         show_config_WiFi_page(server, arg, owl)
         return
-    
+
     if arg == "/?":
         owl.autorefresh = False
     elif arg == "/?autorefresh=on":
@@ -132,10 +132,10 @@ def show_config_page(server, arg, owl):
     s1 = "СРШ: " + dumps(owl.value_now)
     s = html_config.format(
         s1,  #
-        config.ROUTEROS_IP,  #  
-        config.ROUTEROS_USER,  #  
-        config.ROUTEROS_PASSWORD,  #  
-        config.RADIO_NAME
+        owl.ROUTEROS_IP,  #
+        owl.ROUTEROS_USER,  #
+        owl.ROUTEROS_PASSWORD,  #
+        owl.RADIO_NAME
         )
     collect()
     server.out(s)
@@ -143,7 +143,7 @@ def show_config_page(server, arg, owl):
 
 def show_config_WiFi_page(server, arg, owl):
     collect()
-    s1 = str(WiFi.WiFi_info()) +'<br>' + str(WiFi.ssid_list)
+    s1 = "СРШ: " + owl.ROUTEROS_IP + '<br>' + str(WiFi.WiFi_info()) +'<br>' + str(WiFi.ssid_list)
     s = html_config_WiFi.format(
         s1,  #
         WiFi.SSID,  #
@@ -182,15 +182,15 @@ def show_debug_page(server, arg, owl):
             #print(f'exec() Expression:>{owl.expression}< {type(owl.expression)}')
             exec(owl.expression)
             #print(f'exec() Ok')
-            
+
             owl_expression = owl.expression
             #print(f'owl_expression = >{owl_expression}< {type(owl_expression)}')
             owl_expression = owl_expression[:owl_expression.find('=')]
             #print(f'owl_expression = >{owl_expression}< {type(owl_expression)}')
-            
+
             eval_owl_expression = eval(owl_expression)
             #print(f'eval_owl_expression = >{eval_owl_expression}< {type(eval_owl_expression)}')
-            
+
         debug_value = dumps(eval_owl_expression)
     except Exception as e:
         debug_value = 'Error:' + dumps(e)
@@ -216,16 +216,16 @@ def do_save_config_speed(server, arg, owl):
 
 def do_connect_config_WiFi(server, arg, owl):
     # WiFi_login(config_WiFi.SSID, config_WiFi.PASSWORD, config_WiFi.OWL_IP, config_WiFi.OWL_SUBNET, config_WiFi.OWL_GATEWAY, config_WiFi.OWL_DNS)
+    show_config_WiFi_page(server, arg, owl)
     WiFi.save_config_WiFi(WiFi.SSID, WiFi.PASSWORD, (WiFi.OWL_IP, WiFi.OWL_SUBNET, WiFi.OWL_GATEWAY, WiFi.OWL_DNS))
     WiFi.net_state = WiFi.NET_STA_INIT
-    show_config_WiFi_page(server, arg, owl)
 
 
 def do_save_config_WiFi(server, arg, owl):
     if WiFi.wlan_sta.isconnected():
         WiFi.save_config_WiFi(WiFi.SSID, WiFi.PASSWORD, (WiFi.OWL_IP, WiFi.OWL_SUBNET, WiFi.OWL_GATEWAY, WiFi.OWL_DNS))
     show_config_WiFi_page(server, arg, owl)
-    
+
 
 #--------------------------------------------------------
 def do_handler(server, arg, owl):
@@ -266,7 +266,6 @@ def get_arg(arg_str):
         s = arg_str[_from:]
     return s
 
-
 def arg2val(arg):
     val = None
     s = get_arg(arg)
@@ -286,19 +285,19 @@ def arg2val(arg):
                 #print('C arg=', arg, 's=', s, 'val=', val,'Error:', e)
                 val = s
     #print(f'arg=>{arg}< s=>{s}< val=>{val}< type(val)={type(val)}')
-    return val
+    return val, s
 
 
 def do_get(server, arg, owl):
-    val = arg2val(arg)
+    val, s = arg2val(arg)
     if val is not None:
         if arg.find("input_a=") > 0:
             owl.input_azim = val
             if arg.find("&max=") > 0:
-                owl.azim.max_search = min(val, owl.azim.mover.max_limit)
+                owl.azim.max_search = min(val, owl.azim.mover.angle_max_limit)
                 save_config_search(owl)
             elif arg.find("&min=") > 0:
-                owl.azim.min_search = max(val, owl.azim.mover.min_limit)
+                owl.azim.min_search = max(val, owl.azim.mover.angle_min_limit)
                 save_config_search(owl)
             else:
                 #if owl.mode == owl.MD_MANUAL:
@@ -306,10 +305,10 @@ def do_get(server, arg, owl):
         elif arg.find("input_e=") > 0:
             owl.input_elev = val
             if arg.find("&max=") > 0:
-                owl.elev.max_search = min(val, owl.elev.mover.max_limit)
+                owl.elev.max_search = min(val, owl.elev.mover.angle_max_limit)
                 save_config_search(owl)
             elif arg.find("&min=") > 0:
-                owl.elev.min_search = max(val, owl.elev.mover.min_limit)
+                owl.elev.min_search = max(val, owl.elev.mover.angle_min_limit)
                 save_config_search(owl)
             else:
                 #if owl.mode == owl.MD_MANUAL:
@@ -320,55 +319,54 @@ def do_get(server, arg, owl):
 
 def do_get_config(server, arg, owl):
     if USE_ROUTEROS_API:
-        val = arg2val(arg)
-        changed = False
+        val, s = arg2val(arg)
         if val is not None:
             if arg.find("ROUTEROS_IP=") >= 0:
                 if val.count('.') == 3:
-                    if config.ROUTEROS_IP != val:
-                        config.ROUTEROS_IP = val
-                        changed = True
+                    if owl.ROUTEROS_IP != val:
+                        owl.ROUTEROS_IP = val
             elif arg.find("ROUTEROS_USER=") >= 0:
-                if config.ROUTEROS_USER != val:
-                    config.ROUTEROS_USER = val
-                    changed = True
-            elif arg.find("ROUTEROS_PASSWORD=") >= 0:
-                if config.ROUTEROS_USER != val:
-                    config.ROUTEROS_USER = val
-                    changed = True
+                if owl.ROUTEROS_USER != val:
+                    owl.ROUTEROS_USER = val
+            elif arg.find("PASSWORD=") >= 0:
+                if owl.ROUTEROS_PASSWORD != s:
+                    owl.ROUTEROS_PASSWORD = s
             elif arg.find("radio_name=") >= 0:
-                config.RADIO_NAME = val
+                owl.RADIO_NAME = val
                 owl.RADIO_NAME = val
                 if owl.ros_api:
-                    owl.ros_api.radio_name = b"=radio-name=" + config.RADIO_NAME
-                    #print('do_get_config():ros_api.radio_name', owl.ros_api.radio_name)
-        if changed:
+                    owl.ros_api.radio_name = b"=radio-name=" + owl.RADIO_NAME
             owl.deinit_ros_api()
-            owl.init_ros_api(config.ROUTEROS_IP, config.ROUTEROS_USER, config.ROUTEROS_PASSWORD)
+            owl.init_ros_api(owl.ROUTEROS_IP, owl.ROUTEROS_USER, owl.ROUTEROS_PASSWORD)
             owl.deinit_ros_api2()
-            owl.init_ros_api2(config.ROUTEROS_IP, config.ROUTEROS_USER, config.ROUTEROS_PASSWORD)
+            owl.init_ros_api2(owl.ROUTEROS_IP, owl.ROUTEROS_USER, owl.ROUTEROS_PASSWORD)
     show_config_page(server, arg, owl)
 
 
 def do_get_config_WiFi(server, arg, owl):
-    val = arg2val(arg)
+    val, s = arg2val(arg)
     #print('val, arg', val, arg)
     if val is not None:
         if arg.find("SSID=") >= 0:
-            if val in WiFi.ssid_list:
-                WiFi.SSID = val
+            #if val in WiFi.ssid_list:
+            WiFi.SSID = val
         elif arg.find("PASSWORD=") >= 0:
             WiFi.PASSWORD = val
         elif arg.find("OWL_IP=") >= 0:
             val = val.lower()
             if val.count('.') == 3 or val == 'dhcp':
                 WiFi.OWL_IP = val
+                if val.count('.') == 3:
+                    WiFi.OWL_GATEWAY = val[:val.rfind('.')] + '.1'
+                    WiFi.OWL_DNS = WiFi.OWL_GATEWAY
         elif arg.find("OWL_SUBNET=") >= 0:
             if val.count('.') == 3:
                 WiFi.OWL_SUBNET = val
         elif arg.find("OWL_GATEWAY=") >= 0:
             if val.count('.') == 3:
                 WiFi.OWL_GATEWAY = val
+                if val.count('.') == 3:
+                    WiFi.OWL_DNS = WiFi.OWL_GATEWAY
         elif arg.find("OWL_DNS=") >= 0:
             if val.count('.') == 3:
                 WiFi.OWL_DNS = val
@@ -378,7 +376,7 @@ def do_get_config_WiFi(server, arg, owl):
 
 
 def do_get_config_speed(server, arg, owl):
-    val = arg2val(arg)
+    val, s = arg2val(arg)
     if val is not None:
         if arg.find("azim_angle_accel_decel=") > 0:
             owl.azim.mover.accel.angle_accel_decel = val

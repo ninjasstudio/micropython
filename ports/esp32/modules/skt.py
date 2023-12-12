@@ -1,5 +1,6 @@
 from socket import socket, AF_INET, SOCK_STREAM, SOL_SOCKET, SO_REUSEADDR  #, getaddrinfo
 
+from sys import print_exception
 
 def open_server_socket(ip, port=0, address_family_type=AF_INET, socket_type=SOCK_STREAM, timeout=0, backlog=0):
     try:
@@ -42,7 +43,7 @@ def open_server_socket(ip, port=0, address_family_type=AF_INET, socket_type=SOCK
         return server_socket
     except Exception as e:
         print("Error: open_server_socket():", e)
-        #print_exception(e)
+        print_exception(e)
         try:
             server_socket.close()
         except:
