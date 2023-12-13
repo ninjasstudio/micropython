@@ -6,8 +6,8 @@ ROS_TIMEOUT = 0.01  # 1  # 0.1  # time in seconds
 #ros_command = ["/interface/wireless/align/monitor/wlan1"]  #
 ros_command = "/interface/wireless/registration-table/print"
 
-#ros_params = (b"=signal-strength=", b"=signal-to-noise=")
-ros_params = (b"=signal-strength-ch0=", b"=signal-to-noise=")  #
+ros_params = (b"=signal-strength=", b"=signal-to-noise=")
+#ros_params = (b"=signal-strength-ch0=", b"=signal-to-noise=")
 #ros_params = (b"=signal-to-noise=", )  # ',' comma symbol is required to make a tuple
 
 from gc import collect
@@ -80,7 +80,7 @@ def handle_ros_command(owl):
 #     elev_angle_now = owl.elev.mover.angle_now  # 1
 
     owl.value_now = None
-    
+
     if owl.ros_api != None:
         if owl.ros_api.skt == None:
             owl.ros_api = None
@@ -96,7 +96,7 @@ def handle_ros_command(owl):
 
     owl.azim_angle_now = round(azim_angle_now, 2)  # 5
     owl.elev_angle_now = round(elev_angle_now, 2)  # 5
-    
+
     if owl.value_now is not None:
         if len(owl.value_now) > 0:
             if value_cmp(owl.value_now, owl.ros_best, ros_params) > 0:

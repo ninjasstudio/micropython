@@ -32,6 +32,11 @@ class Trapezoidal:
         if error < self.angle_accel_decel:
             output = self.min_output + (self.max_output  - self.min_output) * error / self.angle_accel_decel
 
+        if output < self.min_output:
+            output = self.min_output
+        if output < 100:
+            output = 100
+        
         # keep track of state
         self._last_input = input_
         self._last_error = error

@@ -9,9 +9,7 @@ Mikrotik RBM33G(СРШ-5000) ~ 55c (последовательно через Mi
 Mikrotik Dron ~ 45-60c
 ESP32 ~ 30-60c
 '''
-#from gc import collect
 from utime import sleep_ms, time # ticks_ms, ticks_diff,
-#from machine import idle
 #from network_msg import wlan_status, authmode, rssi
 from sys import print_exception
 from _thread import start_new_thread
@@ -25,7 +23,7 @@ CONNECTING_TIMEOUT = 60 # 60 seconds
 SSID = 'TEST_SOVA'
 PASSWORD = 'PASSWORD'
 
-DEFAULT_IP = '192.168.1.111'
+DEFAULT_IP = '192.168.1.200'
 DEFAULT_SUBNET = '255.255.255.0'
 DEFAULT_GATEWAY = '192.168.1.1'
 DEFAULT_DNS = DEFAULT_GATEWAY
@@ -41,7 +39,7 @@ NET_STA_INIT = 1
 NET_STA_CONNECTING = 2
 NET_STA_GOT_IP = 3
 NET_AP_INIT = -1
-NET_AP_CONNECTING = -2
+NET_AP_RUN = -2
 NET_AP_GOT_IP = -3
 
 net_state = NET_STA_IMPORT
@@ -99,7 +97,6 @@ def WiFi_connect(prn=False):
                 ip4 = 100 + config_serial_SERIAL_NUMBER % 100
                 DEFAULT_IP = DEFAULT_IP[:DEFAULT_IP.rfind('.') + 1] + str(ip4)
             del config_serial
-            # collect()
         except (ImportError, AttributeError) as e:
             print_exception(e)
 
@@ -112,7 +109,6 @@ def WiFi_connect(prn=False):
             OWL_GATEWAY = config_WiFi.OWL_GATEWAY
             OWL_DNS = config_WiFi.OWL_DNS
             del config_WiFi
-            # collect()
         except (ImportError, AttributeError) as e:
             print_exception(e)
             OWL_IP = 'dhcp'
@@ -124,7 +120,7 @@ def WiFi_connect(prn=False):
         else:
             PRINT and print('import', SSID, PASSWORD, OWL_IP, OWL_SUBNET, OWL_GATEWAY, OWL_DNS)
         net_state = NET_STA_INIT
-        PRINT and print('NET_STA_INIT')
+        PRINT and print('NET_STA_INIT: import')
 
     if net_state == NET_STA_INIT:
         if wlan_ap.active():
@@ -154,15 +150,15 @@ def WiFi_connect(prn=False):
                     pass
         net_time = time()
         net_state = NET_STA_CONNECTING
-        PRINT and print('NET_STA_CONNECTING')
+        PRINT and print('NET_STA_CONNECTING: INIT')
     elif net_state == NET_STA_CONNECTING:
         if wlan_sta.status() == network.STAT_GOT_IP:
             net_state = NET_STA_GOT_IP
             PRINT and print('NET_STA_GOT_IP')
         else:
-            if time() - net_time >= CONNECTING_TIMEOUT * 2:
+            if time() - net_time >= CONNECTING_TIMEOUT * 3:
                 net_state = NET_AP_INIT
-                PRINT and print('NET_AP_INIT')
+                PRINT and print('NET_AP_INIT: not STAT_GOT_IP')
             elif time() - net_time >= CONNECTING_TIMEOUT:
                 if wlan_sta.status() != network.STAT_NO_AP_FOUND:
                     if OWL_IP != DEFAULT_IP:
@@ -172,7 +168,7 @@ def WiFi_connect(prn=False):
     elif net_state == NET_STA_GOT_IP:
         if wlan_sta.status() != network.STAT_GOT_IP:
             net_state = NET_STA_CONNECTING
-            PRINT and print('NET_STA_CONNECTING')
+            PRINT and print('NET_STA_CONNECTING: not STAT_GOT_IP')
     elif net_state == NET_AP_INIT:
         if wlan_sta.active():
             if wlan_sta.isconnected():
@@ -182,8 +178,13 @@ def WiFi_connect(prn=False):
         wlan_ap.config(ssid='ESP-AP-' + SSID)
         wlan_ap.config(max_clients=5)
         net_time = time()
-        net_state = NET_AP_CONNECTING
-        PRINT and print('NET_AP_CONNECTING')
+        net_state = NET_AP_RUN
+        PRINT and print('NET_AP_RUN')
+    elif net_state == NET_AP_RUN:
+        if not wlan_ap.isconnected():
+            if time() - net_time >= CONNECTING_TIMEOUT * 2:
+                net_state = NET_STA_INIT
+                PRINT and print('NET_STA_INIT: AP TIMEOUT')
 
     #if not wlan_sta.active():
 #     if not wlan_sta.isconnected():
@@ -197,7 +198,7 @@ def WiFi_connect(prn=False):
 
     if wlan_status == network.STAT_NO_AP_FOUND:
         if net_state >= NET_STA_INIT:
-            if time() - net_time >= CONNECTING_TIMEOUT * 2:
+            if time() - net_time >= CONNECTING_TIMEOUT * 3:
                 net_state = NET_AP_INIT
                 PRINT and print('NET_AP_INIT: STAT_NO_AP_FOUND')
     elif wlan_status == network.STAT_GOT_IP:
