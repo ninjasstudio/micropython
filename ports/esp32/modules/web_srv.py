@@ -70,9 +70,11 @@ def show_index_page(server, arg, owl):
     s1 = ""
     if owl.autorefresh:
         s1 = '<meta http-equiv="Refresh" content="2" />'
-    s2 = "СРШ: " + dumps(owl.value_now)
-    s3 = "Азимут,°: " + str(owl.azim.mover.angle_now) + " → " + str(owl.azim.angle_target) + " (" + str(owl.azim.min_search) + ", " + str(owl.azim.max_search) + ") " + str(owl.azim.angle_best)
-    s4 = "Кут місця,°: " + str(owl.elev.mover.angle_now) + " → " + str(owl.elev.angle_target) + " (" + str(owl.elev.min_search) + ", " + str(owl.elev.max_search) + ") " + str(owl.elev.angle_best)
+    _bst = str(owl.ros_best.values())
+    bst = _bst[_bst.find('['):_bst.find(']') + 1]
+    s2 = f"СРШ: {owl.value_now} {bst}" 
+    s3 =    f"Азимут,°: {owl.azim.mover.angle_now} → {owl.azim.angle_target} ({owl.azim.min_search}, {owl.azim.max_search}) [{owl.azim.angle_best}]"
+    s4 = f"Кут місця,°: {owl.elev.mover.angle_now} → {owl.elev.angle_target} ({owl.elev.min_search}, {owl.elev.max_search}) [{owl.elev.angle_best}]"
 
     input_a = str(owl.input_azim)
     input_e = str(owl.input_elev)
@@ -161,11 +163,11 @@ def show_config_speed_page(server, arg, owl):
     collect()
     s = html_config_speed.format(
         str(owl.azim.mover.accel.angle_accel_decel),  #
-        str(owl.azim.mover.rpm_low),  #
-        str(owl.azim.mover.rpm_high),  #
+        str(round(owl.azim.mover.rpm_high, 2)),  #
+        str(round(owl.azim.mover.rpm_low, 2)),  #
         str(owl.elev.mover.accel.angle_accel_decel),  #
-        str(owl.elev.mover.rpm_low),  #
-        str(owl.elev.mover.rpm_high)
+        str(round(owl.elev.mover.rpm_high, 2)),  #
+        str(round(owl.elev.mover.rpm_low, 2))
         )
     collect()
     server.out(s)

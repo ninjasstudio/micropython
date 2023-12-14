@@ -9,7 +9,7 @@ import config_version
 rpm_high_save = 0
 rpm_low_save = 0
 
-#motor_state = -1
+motor_state = -1
 
 def handle_sector(owl, motor, ros_params):
     global rpm_high_save, rpm_low_save
@@ -18,7 +18,7 @@ def handle_sector(owl, motor, ros_params):
 #     if motor_state != motor.state:
 #         print('motor_state <- motor.state', motor_state, motor.state)
 #         motor_state = motor.state
-    
+
     # Поиск глобального максимального уровня в секторе.
     handle_ros_command(owl)
     if owl.value_now is None:
@@ -34,7 +34,7 @@ def handle_sector(owl, motor, ros_params):
         if len(motor.value_start) == 0:
             motor.value_start = v  # обнаружен сигнал
             motor.angle_start = a  # в этой позиции
-            
+
     if motor.state == 0:  # очищаем исходные
         owl.sector_time = time()
         #owl.ros_command2 = ["/interface/wireless/set", "=.id=wlan1", "=tx-chains=0,1", "=rx-chains=0,1"]
@@ -62,7 +62,7 @@ def handle_sector(owl, motor, ros_params):
         else:
             motor.angle_begin = None  # сигнала нет в начале поиска (не будет перезаписан)
             if owl.mode == owl.MD_SECTOR_A:
-                owl.elev.angle_target = 0  # перейти в горизонт 
+                owl.elev.angle_target = 0  # перейти в горизонт
 
         motor.angle_start = a  # если сигнал отсутствует, то стартовая позиция будет переписана при обнаружении сигнала
         motor.value_start = v
@@ -94,19 +94,19 @@ def handle_sector(owl, motor, ros_params):
                 owl.elev.angle_target = - owl.ANTENNA_ANGLE
             else:
                 owl.elev.angle_target = 0
-                
+
             if owl.sector_counter == 2:
                 owl.azim.mover.rpm_high = owl.azim.mover.rpm_high / 5
                 owl.azim.mover.rpm_low = owl.azim.mover.rpm_low / 5
             else:
                 owl.azim.mover.rpm_high = rpm_high_save
                 owl.azim.mover.rpm_low = rpm_low_save
-            
+
 #             print('owl.azim.mover.rpm_high, owl.azim.mover.rpm_low', owl.azim.mover.rpm_high, owl.azim.mover.rpm_low, motor.mover.rpm)
 #             print('Поиск по азимуту owl.azim.angle_target=', owl.azim.angle_target, ', owl.elev.angle_target=', owl.elev.angle_target, ', owl.sector_counter = ', owl.sector_counter)
 #             print()
-            
-            owl.sector_counter += 1
+
+        owl.sector_counter += 1
         motor.state = 3
 
     elif motor.state == 3:
@@ -121,9 +121,17 @@ def handle_sector(owl, motor, ros_params):
 
             if motor.angle_best is not None:
                 motor.angle_target = motor.angle_best  # идем в лучшее
-                motor.state = 5
+
+                owl.azim.mover.rpm_high = rpm_high_save
+                owl.azim.mover.rpm_low = rpm_low_save
+
+                #print("owl.sector_counter", owl.sector_counter)
+                if owl.sector_counter >= 2:
+                    motor.state = 5
+                else:
+                    motor.search_dir = -motor.search_dir
+                    motor.state = 2
             else:
-            #if owl.sector_counter < 2:
                 motor.search_dir = -motor.search_dir
                 motor.state = 2  # повторный поиска в противоположном направлении, нужно пройти полный сектор поиска
 
@@ -131,7 +139,7 @@ def handle_sector(owl, motor, ros_params):
 #         if motor.mover.is_ready():
 #             motor.mover.stop()
 #             motor.state = 4
-#             
+#
 #     elif motor.state == 4:
 #         if owl.state == owl.CM_NO:
 #             motor.mover.stop()

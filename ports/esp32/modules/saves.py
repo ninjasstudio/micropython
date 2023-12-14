@@ -20,6 +20,7 @@ def save_config_offset(owl):
             f.write("AZIM_OFFSET = {}\n".format(dumps(owl.azim.mover.offset)))
             # f.write("AZIM_OFFSET = 0.0\n")
             f.write("ELEV_OFFSET = {}\n".format(dumps(owl.elev.mover.offset)))
+            f.write("ROLL_OFFSET = {}\n".format(dumps(owl.sensors.offset_roll)))
             f.close()
     except Exception as e:
         print('Error writing config_offset.py:', e)
@@ -41,12 +42,12 @@ def save_config_speed(owl):
     try:
         with open("./config_speed.py", "w") as f:
             f.write("AZIM_angle_accel_decel = {}\n".format(dumps(owl.azim.mover.accel.angle_accel_decel)))
+            f.write("AZIM_rpm_high = {}\n".format(dumps(owl.azim.mover.rpm_high)))
             f.write("AZIM_rpm_low = {}\n".format(dumps(owl.azim.mover.rpm_low)))
-            f.write("AZIM_rpm_high = {}\n\n".format(dumps(owl.azim.mover.rpm_high)))
-
+            f.write("\n")
             f.write("ELEV_angle_accel_decel = {}\n".format(dumps(owl.elev.mover.accel.angle_accel_decel)))
-            f.write("ELEV_rpm_low = {}\n".format(dumps(owl.elev.mover.rpm_low)))
             f.write("ELEV_rpm_high = {}\n".format(dumps(owl.elev.mover.rpm_high)))
+            f.write("ELEV_rpm_low = {}\n".format(dumps(owl.elev.mover.rpm_low)))
             f.close()
     except Exception as e:
         print('Error writing config_speed.py:', e)

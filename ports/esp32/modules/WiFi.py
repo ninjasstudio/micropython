@@ -15,6 +15,7 @@ from sys import print_exception
 from _thread import start_new_thread
 from machine import Timer
 import network
+import webrepl
 
 PRINT = False #  True #  
 
@@ -202,8 +203,14 @@ def WiFi_connect(prn=False):
                 net_state = NET_AP_INIT
                 PRINT and print('NET_AP_INIT: STAT_NO_AP_FOUND')
     elif wlan_status == network.STAT_GOT_IP:
-        net_state == NET_STA_GOT_IP
-        #  PRINT and print('NET_STA_GOT_IP')
+        if net_state != NET_STA_GOT_IP:
+#             try:
+#                 webrepl.stop()
+#             except:
+#                 pass
+            webrepl.start(password='')
+            net_state = NET_STA_GOT_IP
+            PRINT and print('NET_STA_GOT_IP')
 
     return WiFi_info()
 

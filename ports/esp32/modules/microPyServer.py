@@ -142,9 +142,9 @@ class MicroPyServer(object):
 
     def receive(self):
         try:
-            received = self._skt.recv(1024)
+            received, from_addr = self._skt.recvfrom(1024)
             if received == b'':
-                print("{}:{} MicroPyServer connection {} error: received == b''".format(self._host, self.port, self._skt.fileno()), self._skt.fileno())
+                print("{}:{} MicroPyServer connection {} error: received == b'' from {from_addr}".format(self._host, self.port, self._skt.fileno()), from_addr)
                 self.connect_close()
                 return False
             self._success_time = time()
