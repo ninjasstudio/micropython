@@ -37,18 +37,17 @@ class UdpMulticastServer(object):
 
     @property
     def host(self):
-        if self.server_ip is None:
-            wlan = WLAN(STA_IF)
-            if wlan.isconnected():
+        wlan = WLAN(STA_IF)
+        if wlan.isconnected():
+            self.server_ip = wlan.ifconfig()[0]
+        else:
+            wlan = WLAN(AP_IF)
+            if wlan.active():
                 self.server_ip = wlan.ifconfig()[0]
             else:
-                wlan = WLAN(AP_IF)
-                if wlan.active():
-                    self.server_ip = wlan.ifconfig()[0]
-                else:
-                    self.server_ip = None
-            if self.server_ip is not None:
-                self.mac = hexlify(wlan.config('mac'), '-').decode("utf-8").upper()
+                self.server_ip = None
+        if self.server_ip is not None:
+            self.mac = hexlify(wlan.config('mac'), '-').decode("utf-8").upper()
         return self.server_ip
 
     def begin(self):
