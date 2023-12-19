@@ -272,7 +272,9 @@ def arg2val(arg):
     val = None
     s = get_arg(arg)
 
-    if len(s):
+    if s == '':
+        val = ''
+    else:        
         try:
             val = loads(s)
         except ValueError as e:
@@ -296,24 +298,30 @@ def do_get(server, arg, owl):
         if arg.find("input_a=") > 0:
             owl.input_azim = val
             if arg.find("&max=") > 0:
-                owl.azim.max_search = min(val, owl.azim.mover.angle_max_limit)
-                save_config_search(owl)
+                if val <= owl.azim.mover.angle_max_limit:
+                    if val > owl.azim.min_search:
+                        owl.azim.max_search = val
+                        save_config_search(owl)
             elif arg.find("&min=") > 0:
-                owl.azim.min_search = max(val, owl.azim.mover.angle_min_limit)
-                save_config_search(owl)
+                if val >= owl.azim.mover.angle_min_limit:
+                    if val < owl.azim.max_search:
+                        owl.azim.min_search = val
+                        save_config_search(owl)
             else:
-                #if owl.mode == owl.MD_MANUAL:
                 owl.azim.angle_target = val
         elif arg.find("input_e=") > 0:
             owl.input_elev = val
             if arg.find("&max=") > 0:
-                owl.elev.max_search = min(val, owl.elev.mover.angle_max_limit)
-                save_config_search(owl)
+                if val <= owl.elev.mover.angle_max_limit:
+                    if val > owl.elev.min_search:
+                        owl.elev.max_search = val
+                        save_config_search(owl)
             elif arg.find("&min=") > 0:
-                owl.elev.min_search = max(val, owl.elev.mover.angle_min_limit)
-                save_config_search(owl)
+                if val >= owl.elev.mover.angle_min_limit:
+                    if val < owl.elev.max_search:
+                        owl.elev.min_search = val
+                        save_config_search(owl)
             else:
-                #if owl.mode == owl.MD_MANUAL:
                 owl.elev.angle_target = val
     show_index_page(server, arg, owl)
     owl.auto_start = False

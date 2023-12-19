@@ -7,6 +7,7 @@ from socket import socket, getaddrinfo, AF_INET, SOCK_STREAM, SOL_SOCKET, SO_REU
 
 collect()
 import sys
+from time import time
 
 collect()
 
@@ -62,6 +63,7 @@ class ApiRos:
         #self.in_buf_mv = memoryview(self.in_buf)
 
         self.empty_bufs()
+        self.t = 0
 
     def empty_out_buf(self):
         self.out_index_load = 0  # position to load to self.out_buf
@@ -90,6 +92,7 @@ class ApiRos:
         except:
             pass
         self.skt = None
+        self.value = None
         self.empty_bufs()
 
     def login(self, username, pwd):
@@ -339,7 +342,8 @@ class ApiRos:
 #         print('state, value, skt, out_index_load, out_index_send, in_index_get', self.state, self.value, self.skt, self.out_index_load, self.out_index_send, self.in_index_get)
 #         print('type(ee)', type(self.ee))
 #         print('ee', self.ee)
-        if self.state in (self.READY, self.OK, self.LOST):
+        if (self.state in (self.READY, self.OK, self.LOST)) or (time() - self.t  > 1):
+            self.t = time()
             try:
                 self.writeString(self.command)
                 #print(self.state, self.radio_name, self.command)
@@ -371,6 +375,7 @@ class ApiRos:
                 self.value = {}
                 return
 
+            self.value = {}
             #self.in_buf_mv = memoryview(self.in_buf)
             #print("---in_buf---\n", self.in_buf, "\n---in_buf---")
             done_pos = self.in_buf.find(b"\x05!done\x00")
@@ -406,6 +411,7 @@ class ApiRos:
                             self.ee = e
                             print("regex.search Exception as e", e.args[0], e)
 
+            #print('n=', n, "===in_buf===\n", self.in_buf, "\n===in_buf===")
             if n == len(self.params):
                 self.state = self.OK
                 self.ee = None
