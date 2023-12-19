@@ -6,7 +6,7 @@ collect()
 from socket import socket, getaddrinfo, AF_INET, SOCK_STREAM, SOL_SOCKET, SO_REUSEADDR
 
 collect()
-import sys
+import sys, binascii, hashlib
 from time import time
 
 collect()
@@ -17,11 +17,11 @@ collect()
 
 if sys.implementation.name == "micropython":
     is_micropython = True
-    from uerrno import EAGAIN, ECONNRESET, EINPROGRESS
+    from uerrno import EAGAIN, ETIMEDOUT, ECONNRESET, EINPROGRESS
     collect()
 else:
     is_micropython = False
-    from errno import EAGAIN, ECONNRESET, EINPROGRESS
+    from errno import EAGAIN, ETIMEDOUT, ECONNRESET, EINPROGRESS
     collect()
 
 from re import compile
@@ -80,7 +80,6 @@ class ApiRos:
 
     def settimeout(self, timeout):
         try:
-            self.skt.setblocking(0)
             self.skt.settimeout(timeout)
             self.timeout = timeout
         except:
@@ -96,34 +95,36 @@ class ApiRos:
         self.empty_bufs()
 
     def login(self, username, pwd):
+        if self.skt is None:
+            return False
         try:
+            self.skt.settimeout(5)
             for repl, attrs in self.talk(["/login", "=name=" + username, "=password=" + pwd]):
+                print(f'repl>{repl}<, attrs>{attrs}<, username>{username}<')
                 if repl == "!trap":
                     return False
                 elif "=ret" in attrs.keys():
-                    # for repl, attrs in self.talk(["/login"]):
-                    chal = binascii.unhexlify((attrs["=ret"]).encode(sys.stdout.encoding))
+                    chal = binascii.unhexlify((attrs["=ret"]).encode())
                     md = hashlib.md5()
                     md.update(b"\x00")
-                    md.update(pwd.encode(sys.stdout.encoding))
+                    md.update(pwd.encode())
                     md.update(chal)
-                    for repl2, _attrs2 in self.talk([
-                        "/login",
-                        "=name=" + username,
-                        "=response=00" + binascii.hexlify(md.digest()).decode(sys.stdout.encoding),
-                        ]):
+                    for repl2, attrs2 in self.talk(["/login", "=name=" + username, "=response=00" + binascii.hexlify(md.digest()).decode()]):
+                        print(f'repl2>{repl}<, attrs2>{attrs2}<')
                         if repl2 == "!trap":
                             return False
-            print("Logged:", username)
+            print("RouterOS logged:", username)
             self.state = self.READY
+            self.skt.settimeout(0)
             return True
         except Exception as e:
-            print('login()', e, e.args[0])
-            if e.args[0] != EAGAIN:
+            print(f'login() e>{e}<, e.args[0]>{e.args[0]}< username>{username}<')
+            if e.args[0] not in (EAGAIN, ETIMEDOUT, 10035):
                 self.ee = e
                 self.state = self.ERROR + 1
                 self.close_socket()
                 return False
+            self.skt.settimeout(0)
 
     def talk(self, words):
         r = []
@@ -294,7 +295,7 @@ class ApiRos:
                 #print(response)
         return res_list
 
-    def receive(self):  #__0
+    def receive(self):
         try:
             received = self.skt.recv(1024)  #1024*10)#128)#
             if received == b'':
@@ -303,10 +304,10 @@ class ApiRos:
                 return False
             self.in_buf += received
         except Exception as e:
-            #if e.args[0] in (EAGAIN, 10035): #
-            if e.args[0] == EAGAIN:  #
+            if e.args[0] in (EAGAIN, ETIMEDOUT, 10035):
                 return False
             else:
+                print(f'receive() e>{e}<, e.args[0]>{e.args[0]}<')
                 self.ee = e
                 print(self.name, "Error: receive:", e)
                 self.close_socket()
@@ -328,8 +329,9 @@ class ApiRos:
                         self.state = self.RECV
                     return True
                 except Exception as e:
-                    if e.args[0] == EAGAIN:
+                    if e.args[0] in (EAGAIN, ETIMEDOUT, 10035):
                         return True
+                    print(f'send() e>{e}<, e.args[0]>{e.args[0]}<')
                     self.ee = e
                     print(self.name, "Error: send:", e.args[0], e)
                     self.close_socket()
@@ -349,7 +351,8 @@ class ApiRos:
                 #print(self.state, self.radio_name, self.command)
                 self.state = self.SEND
             except Exception as e:
-                if e.args[0] != EAGAIN:
+                if e.args[0] not in (EAGAIN, ETIMEDOUT, 10035):
+                    print(f'handle_command() e>{e}<, e.args[0]>{e.args[0]}<')
                     self.ee = e
                     sys.print_exception(e)
                     self.state = self.ERROR + 2
@@ -424,7 +427,14 @@ class ApiRos:
             self.in_buf = self.in_buf[done_pos + 7:]
 
 
+
+open_socket_time = 0 
+
 def open_socket(ip, port=0, secure=False, timeout=None, prn=False):  # timeout in seconds, 0==non blocked, None==blocked
+    global open_socket_time
+    if time() - open_socket_time < 1:
+        return None
+    open_socket_time = time()
     if port == 0:
         port = 8729 if secure else 8728
 
@@ -433,8 +443,7 @@ def open_socket(ip, port=0, secure=False, timeout=None, prn=False):  # timeout i
         addr_info = getaddrinfo(ip, port, AF_INET, SOCK_STREAM)
         af, socktype, proto, _canonname, sockaddr = addr_info[0]
         _skt = socket(af, socktype, proto)
-        _skt.setblocking(0)
-        _skt.settimeout(timeout)
+        _skt.settimeout(None)
     except OSError as e:
         print("Error1_:", e.args[0], e)
         _skt = None
@@ -449,23 +458,18 @@ def open_socket(ip, port=0, secure=False, timeout=None, prn=False):  # timeout i
                 import ssl
                 collect()
 
-            _skt.setblocking(True)
             skt = ssl.wrap_socket(_skt, ssl_version=ssl.PROTOCOL_TLSv1_2, ciphers="ADH-AES128-SHA256")
-            skt.setblocking(0)
-            skt.settimeout(timeout)
             #skt = ssl.wrap_socket(_skt, ssl_version=ssl.PROTOCOL_TLS)
             #skt = ssl.wrap_socket(_skt)
         else:
             skt = _skt
 
         try:
-            skt.setblocking(0)
             skt.settimeout(timeout)
             skt.connect(sockaddr)
         except OSError as e:
             #print("Error: skt.connect(sockaddr)", e.args[0], e, sockaddr)
-            #if e.args[0] != EINPROGRESS:
-            if e.args[0] not in (EINPROGRESS, 10035):  #EINPROGRESS, 10035,
+            if e.args[0] not in (EINPROGRESS, 10035):
                 if prn:
                     print("Error: skt.connect(sockaddr)", e.args[0], e, sockaddr, timeout)
                 try:

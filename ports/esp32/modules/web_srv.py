@@ -347,9 +347,9 @@ def do_get_config(server, arg, owl):
                 if owl.ros_api:
                     owl.ros_api.radio_name = b"=radio-name=" + owl.RADIO_NAME
             owl.deinit_ros_api()
-            owl.init_ros_api(owl.ROUTEROS_IP, owl.ROUTEROS_USER, owl.ROUTEROS_PASSWORD)
-            owl.deinit_ros_api2()
-            owl.init_ros_api2(owl.ROUTEROS_IP, owl.ROUTEROS_USER, owl.ROUTEROS_PASSWORD)
+            owl.init_ros_api(owl.ROUTEROS_USER, owl.ROUTEROS_PASSWORD, owl.ROUTEROS_IP)
+#             owl.deinit_ros_api2()
+#             owl.init_ros_api2(owl.ROUTEROS_USER, owl.ROUTEROS_PASSWORD, owl.ROUTEROS_IP)
     show_config_page(server, arg, owl)
 
 

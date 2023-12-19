@@ -1,5 +1,5 @@
 USE_ROUTEROS_API = 1
-ROS_TIMEOUT = 0.01  # 1  # 0.1  # time in seconds
+ROS_TIMEOUT = 1  # 0.1  # time in seconds
 #OWL_TIMEOUT = 1
 
 #ros_command = ["/interface/wireless/align/print"]
@@ -8,7 +8,6 @@ ros_command = "/interface/wireless/registration-table/print"
 
 ros_params = (b"=signal-strength=", b"=signal-to-noise=")
 #ros_params = (b"=signal-strength-ch0=", b"=signal-to-noise=")
-#ros_params = (b"=signal-to-noise=", )  # ',' comma symbol is required to make a tuple
 
 from gc import collect
 
@@ -362,7 +361,7 @@ class Owl(object):
     def remove_same_gradients(self):
         i = self.is_same_gradient()
         while i >= 0:
-            print("pop({})".format(i))
+            print(f"pop({i})")
             self.angle_diagram[b"angle"].pop(i)
             for ros_param in self.ros_params:
                 self.angle_diagram[ros_param].pop(i)
@@ -449,23 +448,23 @@ class Owl(object):
             self.ros_api.close_socket()
             self.ros_api = None
 
-    def init_ros_api(self, user="admin", passw="", ip="", port=0, secure=False):
+    def init_ros_api(self, user="admin", passw="", ip="", port=8728, secure=False):
         if not USE_ROUTEROS_API:
             return None
 
-        print("Try to open ROS socket {}:{}".format(ip, port))
+        print(f"Try to open ROS socket {ip}:{port}")
         skt = open_socket(ip, port=port, secure=secure, timeout=ROS_TIMEOUT)
         if skt is None:
-            print("Could not open ROS socket", ip, port, secure)
+            print(f"Could not open ROS socket {ip}:{port}")
             return None
 
         ros_api = ApiRos(skt, timeout=ROS_TIMEOUT)
 
         if not ros_api.login(user, passw):
-            print("could not login", user, "to", ip, port)
+            print(f"Could not ROS login '{user}' to {ip}:{port}")
             return None
 
-        ros_api.settimeout(0)  #ROS_TIMEOUT)  #  1)#0.1)  # time in seconds
+        ros_api.settimeout(0)  # time in seconds
         ros_api.command = ros_command
         ros_api.radio_name = b"=radio-name=" + self.RADIO_NAME
         ros_api.params = ros_params
@@ -481,16 +480,16 @@ class Owl(object):
         if not USE_ROUTEROS_API:
             return None
 
-        print("Try to open ROS2 socket {}:{}".format(ip, port))
+        print(f"Try to open ROS2 socket {ip}:{port}")
         skt = open_socket(ip, port=port, secure=secure, timeout=ROS_TIMEOUT)
         if skt is None:
-            print("Could not open ROS2 socket", ip, port, secure)
+            print(f"Could not open ROS2 socket {ip}:{port}")
             return None
 
         ros_api = ApiRos(skt, timeout=ROS_TIMEOUT)
 
         if not ros_api.login(user, passw):
-            print("could not login", user, "to", ip, port)
+            print(f"Could not ROS2 login '{user}' to {ip}:{port}")
             return None
         '''
         ros_api.settimeout(0)  #ROS_TIMEOUT)  #  1)#0.1)  # time in seconds
