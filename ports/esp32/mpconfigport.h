@@ -90,6 +90,7 @@
 #endif
 #define MICROPY_PY_HASHLIB_SHA1             (1)
 #define MICROPY_PY_HASHLIB_SHA256           (1)
+#define MICROPY_PY_HASHLIB_MD5              (1)
 #define MICROPY_PY_CRYPTOLIB                (1)
 #define MICROPY_PY_RANDOM_SEED_INIT_FUNC    (esp_random())
 #define MICROPY_PY_OS_INCLUDEFILE           "ports/esp32/modos.c"
