@@ -108,13 +108,13 @@ STATIC void IRAM_ATTR pcnt_intr_handler(void *arg) {
                 }
                 if (status_unit & PCNT_EVT_ZERO) {
                     if (self->counter == 0) {
-                        //self->status |= PCNT_EVT_ZERO;
+                        // self->status |= PCNT_EVT_ZERO;
                         mp_sched_schedule(self->handler_zero, MP_OBJ_FROM_PTR(self));
                         mp_hal_wake_main_task_from_isr();
                     }
                 }
             }
-            //PCNT.int_clr.val = BIT(id); // clear the interrupt
+            // PCNT.int_clr.val = BIT(id); // clear the interrupt
         }
     }
 }

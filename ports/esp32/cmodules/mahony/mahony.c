@@ -36,20 +36,20 @@ Pizer's Weblog
 #include "py/runtime.h"
 #include "py/builtin.h"
 
-//---------------------------------------------------------------------------------------------------
+// ---------------------------------------------------------------------------------------------------
 // Header files
 
 #include <math.h>
 #include "../invsqrt/invsqrt.h"
 
-//---------------------------------------------------------------------------------------------------
+// ---------------------------------------------------------------------------------------------------
 // Definitions
 
-//#define sampleFreq  512.0f // sample frequency in Hz
+// #define sampleFreq  512.0f // sample frequency in Hz
 #define twoKpDef    (2.0f * 0.5f)   // 2 * proportional gain
 #define twoKiDef    (2.0f * 0.0f)   // 2 * integral gain
 
-//---------------------------------------------------------------------------------------------------
+// ---------------------------------------------------------------------------------------------------
 // Variable definitions
 
 static volatile mp_float_t twoKp = twoKpDef;                                            // 2 * proportional gain (Kp)
@@ -57,14 +57,14 @@ static volatile mp_float_t twoKi = twoKiDef;                                    
 static volatile mp_float_t q0 = 1.0f, q1 = 0.0f, q2 = 0.0f, q3 = 0.0f;                  // quaternion of sensor frame relative to auxiliary frame
 static volatile mp_float_t integralFBx = 0.0f,  integralFBy = 0.0f, integralFBz = 0.0f; // integral error terms scaled by Ki
 
-//---------------------------------------------------------------------------------------------------
+// ---------------------------------------------------------------------------------------------------
 // Function declarations
 STATIC mp_obj_t mahony_MahonyAHRSupdateIMU(size_t n_args, const mp_obj_t *args);
 
-//---------------------------------------------------------------------------------------------------
+// ---------------------------------------------------------------------------------------------------
 // Attitude and heading reference system (AHRS) algorithm update
 //
-//def MahonyAHRSupdate(gx : float, gy : float, gz : float, ax : float, ay : float, az : float, mx : float, my : float, mz : float, delta_t_us:int) -> None:
+// def MahonyAHRSupdate(gx : float, gy : float, gz : float, ax : float, ay : float, az : float, mx : float, my : float, mz : float, delta_t_us:int) -> None:
 //
 STATIC mp_obj_t mahony_MahonyAHRSupdate(size_t n_args, const mp_obj_t *args) {
     mp_float_t gx = mp_obj_get_float(args[0]);
@@ -88,12 +88,12 @@ STATIC mp_obj_t mahony_MahonyAHRSupdate(size_t n_args, const mp_obj_t *args) {
     mp_float_t qa, qb, qc;
 
     // Use IMU algorithm if magnetometer measurement invalid (avoids NaN in magnetometer normalisation)
-    if((mx == 0.0f) && (my == 0.0f) && (mz == 0.0f)) {
+    if ((mx == 0.0f) && (my == 0.0f) && (mz == 0.0f)) {
         return mahony_MahonyAHRSupdateIMU(6, args);
     }
 
     // Compute feedback only if accelerometer measurement valid (avoids NaN in accelerometer normalisation)
-    if(!((ax == 0.0f) && (ay == 0.0f) && (az == 0.0f))) {
+    if (!((ax == 0.0f) && (ay == 0.0f) && (az == 0.0f))) {
 
         // Normalise accelerometer measurement
         recipNorm = invSqrt(ax * ax + ay * ay + az * az);
@@ -139,15 +139,14 @@ STATIC mp_obj_t mahony_MahonyAHRSupdate(size_t n_args, const mp_obj_t *args) {
         halfez = (ax * halfvy - ay * halfvx) + (mx * halfwy - my * halfwx);
 
         // Compute and apply integral feedback if enabled
-        if(twoKi > 0.0f) {
+        if (twoKi > 0.0f) {
             integralFBx += twoKi * halfex * delta_t_s;    // integral error scaled by Ki
             integralFBy += twoKi * halfey * delta_t_s;
             integralFBz += twoKi * halfez * delta_t_s;
             gx += integralFBx;  // apply integral feedback
             gy += integralFBy;
             gz += integralFBz;
-        }
-        else {
+        } else {
             integralFBx = 0.0f; // prevent integral windup
             integralFBy = 0.0f;
             integralFBz = 0.0f;
@@ -191,10 +190,10 @@ STATIC mp_obj_t mahony_MahonyAHRSupdate(size_t n_args, const mp_obj_t *args) {
 }
 MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mahony_MahonyAHRSupdate_obj, 10, 10, mahony_MahonyAHRSupdate);
 
-//---------------------------------------------------------------------------------------------------
+// ---------------------------------------------------------------------------------------------------
 // Inertial measurement unit (IMU) algorithm update
 //
-//def MahonyAHRSupdateIMU(gx : float, gy : float, gz : float, ax : float, ay : float, az : float, delta_t_us:int) -> None:
+// def MahonyAHRSupdateIMU(gx : float, gy : float, gz : float, ax : float, ay : float, az : float, delta_t_us:int) -> None:
 //
 STATIC mp_obj_t mahony_MahonyAHRSupdateIMU(size_t n_args, const mp_obj_t *args) {
     mp_float_t gx = mp_obj_get_float(args[0]);
@@ -213,7 +212,7 @@ STATIC mp_obj_t mahony_MahonyAHRSupdateIMU(size_t n_args, const mp_obj_t *args) 
     mp_float_t qa, qb, qc;
 
     // Compute feedback only if accelerometer measurement valid (avoids NaN in accelerometer normalisation)
-    if(!((ax == 0.0f) && (ay == 0.0f) && (az == 0.0f))) {
+    if (!((ax == 0.0f) && (ay == 0.0f) && (az == 0.0f))) {
 
         // Normalise accelerometer measurement
         recipNorm = invSqrt(ax * ax + ay * ay + az * az);
@@ -232,15 +231,14 @@ STATIC mp_obj_t mahony_MahonyAHRSupdateIMU(size_t n_args, const mp_obj_t *args) 
         halfez = (ax * halfvy - ay * halfvx);
 
         // Compute and apply integral feedback if enabled
-        if(twoKi > 0.0f) {
+        if (twoKi > 0.0f) {
             integralFBx += twoKi * halfex * delta_t_s;    // integral error scaled by Ki
             integralFBy += twoKi * halfey * delta_t_s;
             integralFBz += twoKi * halfez * delta_t_s;
             gx += integralFBx;  // apply integral feedback
             gy += integralFBy;
             gz += integralFBz;
-        }
-        else {
+        } else {
             integralFBx = 0.0f; // prevent integral windup
             integralFBy = 0.0f;
             integralFBz = 0.0f;
@@ -287,9 +285,9 @@ MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mahony_MahonyAHRSupdateIMU_obj, 7, 7, mahony
 // https://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles
 #define ROLL mp_float_t roll = atan2(q0 * q1 + q2 * q3, 0.5f - q1 * q1 - q2 * q2) * 57.295779513f; // degrees
 #define PITCH mp_float_t pitch = asin(2.0f * (q0 * q2 - q3 * q1)) * 57.295779513f; // degrees
-#define YAW mp_float_t yaw =  atan2(q0 * q3 + q1 * q2, 0.5f - q2 * q2 - q3 * q3) * 57.295779513f; // degrees
+#define YAW mp_float_t yaw = atan2(q0 * q3 + q1 * q2, 0.5f - q2 * q2 - q3 * q3) * 57.295779513f;  // degrees
 //
-//def angles()
+// def angles()
 //
 STATIC mp_obj_t mahony_angles() {
     // roll(X), pitch(Y), yaw(Z)
@@ -377,9 +375,9 @@ STATIC mp_obj_t angles_to_quaternion(mp_obj_t _roll, mp_obj_t _pitch, mp_obj_t _
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_3(angles_to_quaternion_obj, angles_to_quaternion);
 
-//---------------------------------------------------------------------------------------------------
+// ---------------------------------------------------------------------------------------------------
 //
-//def get_twoKp() -> float:
+// def get_twoKp() -> float:
 //
 STATIC mp_obj_t mahony_get_twoKp() {
     mp_float_t ret_val;
@@ -391,7 +389,7 @@ STATIC mp_obj_t mahony_get_twoKp() {
 MP_DEFINE_CONST_FUN_OBJ_0(mahony_get_twoKp_obj, mahony_get_twoKp);
 
 //
-//def get_twoKi() -> float:
+// def get_twoKi() -> float:
 //
 STATIC mp_obj_t mahony_get_twoKi() {
     mp_float_t ret_val;
@@ -403,7 +401,7 @@ STATIC mp_obj_t mahony_get_twoKi() {
 MP_DEFINE_CONST_FUN_OBJ_0(mahony_get_twoKi_obj, mahony_get_twoKi);
 
 //
-//def set_twoKi(twoKi : float) -> None:
+// def set_twoKi(twoKi : float) -> None:
 //
 STATIC mp_obj_t mahony_set_twoKi(mp_obj_t twoKi_obj) {
     mp_float_t _twoKi = mp_obj_get_float(twoKi_obj);
@@ -415,7 +413,7 @@ STATIC mp_obj_t mahony_set_twoKi(mp_obj_t twoKi_obj) {
 MP_DEFINE_CONST_FUN_OBJ_1(mahony_set_twoKi_obj, mahony_set_twoKi);
 
 //
-//def set_twoKp(twoKp : float) -> None:
+// def set_twoKp(twoKp : float) -> None:
 //
 STATIC mp_obj_t mahony_set_twoKp(mp_obj_t twoKp_obj) {
     mp_float_t _twoKp = mp_obj_get_float(twoKp_obj);
@@ -430,10 +428,10 @@ STATIC const mp_rom_map_elem_t mahony_module_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_mahony) },
     { MP_ROM_QSTR(MP_QSTR_MahonyAHRSupdate), MP_ROM_PTR(&mahony_MahonyAHRSupdate_obj) },
     { MP_ROM_QSTR(MP_QSTR_MahonyAHRSupdateIMU), MP_ROM_PTR(&mahony_MahonyAHRSupdateIMU_obj) },
-	{ MP_ROM_QSTR(MP_QSTR_Mahony_angles), MP_ROM_PTR(&mahony_angles_obj) },
-	{ MP_ROM_QSTR(MP_QSTR_Mahony_roll), MP_ROM_PTR(&mahony_roll_obj) },
-	{ MP_ROM_QSTR(MP_QSTR_Mahony_pitch), MP_ROM_PTR(&mahony_pitch_obj) },
-	{ MP_ROM_QSTR(MP_QSTR_Mahony_yaw), MP_ROM_PTR(&mahony_yaw_obj) },
+    { MP_ROM_QSTR(MP_QSTR_Mahony_angles), MP_ROM_PTR(&mahony_angles_obj) },
+    { MP_ROM_QSTR(MP_QSTR_Mahony_roll), MP_ROM_PTR(&mahony_roll_obj) },
+    { MP_ROM_QSTR(MP_QSTR_Mahony_pitch), MP_ROM_PTR(&mahony_pitch_obj) },
+    { MP_ROM_QSTR(MP_QSTR_Mahony_yaw), MP_ROM_PTR(&mahony_yaw_obj) },
     { MP_ROM_QSTR(MP_QSTR_get_twoKp), MP_ROM_PTR(&mahony_get_twoKp_obj) },
     { MP_ROM_QSTR(MP_QSTR_get_twoKi), MP_ROM_PTR(&mahony_get_twoKi_obj) },
     { MP_ROM_QSTR(MP_QSTR_set_twoKi), MP_ROM_PTR(&mahony_set_twoKi_obj) },
@@ -445,7 +443,7 @@ STATIC const mp_rom_map_elem_t mahony_module_globals_table[] = {
 STATIC MP_DEFINE_CONST_DICT(mahony_module_globals, mahony_module_globals_table);
 const mp_obj_module_t mahony_user_cmodule = {
     .base = {&mp_type_module},
-    .globals = (mp_obj_dict_t*)&mahony_module_globals,
+    .globals = (mp_obj_dict_t *)&mahony_module_globals,
 };
 
 MP_REGISTER_MODULE(MP_QSTR_mahony, mahony_user_cmodule);
