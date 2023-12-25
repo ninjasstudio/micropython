@@ -297,11 +297,11 @@ STATIC mp_obj_t hashlib_md5_digest(mp_obj_t self_in) {
 
 #if MICROPY_SSL_MBEDTLS
 
-//#if MBEDTLS_VERSION_NUMBER < 0x02070000
+#if MBEDTLS_VERSION_NUMBER < 0x02070000 || MBEDTLS_VERSION_NUMBER >= 0x03000000
 #define mbedtls_md5_starts_ret mbedtls_md5_starts
 #define mbedtls_md5_update_ret mbedtls_md5_update
 #define mbedtls_md5_finish_ret mbedtls_md5_finish
-//#endif
+#endif
 
 STATIC mp_obj_t hashlib_md5_make_new(const mp_obj_type_t *type, size_t n_args, size_t n_kw, const mp_obj_t *args) {
     mp_arg_check_num(n_args, n_kw, 0, 1, false);
