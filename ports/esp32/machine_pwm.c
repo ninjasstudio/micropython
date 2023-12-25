@@ -31,6 +31,11 @@
 // extmod/machine_pwm.c via MICROPY_PY_MACHINE_PWM_INCLUDEFILE.
 
 #include <math.h>
+
+#define MP_PRN_LEVEL 0 // 1000 // show all messages
+#include "py/mpprint.h"
+
+#include "py/runtime.h"
 #include "py/mphal.h"
 
 #include "hal/ledc_hal.h"
@@ -201,6 +206,7 @@ void machine_pwm_deinit_all(void) {
 }
 
 STATIC void configure_channel(machine_pwm_obj_t *self) {
+    MP_PRN(3, "configure_channel(mode=%d, channel=%d, timer=%d, pin=%d)", self->mode, self->channel, self->timer, self->pin);
     ledc_channel_config_t cfg = {
         .channel = self->channel,
         .duty = self->channel_duty,
@@ -227,6 +233,36 @@ STATIC void configure_channel(machine_pwm_obj_t *self) {
         esp_rom_gpio_connect_out_signal(self->pin, LEDC_HS_SIG_OUT0_IDX + self->channel, self->output_invert, false);
     #endif
     }
+    /*
+    test.py:
+    ```
+    import machine
+    pin = machine.Pin(17)
+    counter = machine.Counter(0, pin)  # must be first !!!
+    pwm = machine.PWM(pin)             # must be second !!!
+
+    print(pwm)
+    print(counter)
+    print("counter.value()=", counter.value())
+    print("counter.value()=", counter.value())
+    print("counter.value()=", counter.value())
+    print("counter.value()=", counter.value())
+    print("counter.value()=", counter.value())
+    print("counter.value()=", counter.value())
+    print("counter.value()=", counter.value())
+    ```
+
+    Output is:
+    PWM(Pin(17), freq=5000, duty_u16=32768)
+    Counter(0, src=Pin(17), direction=Counter.UP, edge=Counter.RISING, filter_ns=0)
+    counter.value()= 92
+    counter.value()= 94
+    counter.value()= 95
+    counter.value()= 95
+    counter.value()= 142
+    counter.value()= 142
+    counter.value()= 143
+    */
 }
 
 STATIC void pwm_is_active(machine_pwm_obj_t *self) {
@@ -296,6 +332,9 @@ STATIC void set_duty_u16(machine_pwm_obj_t *self, int duty) {
     } else if (channel_duty > max_duty) {
         channel_duty = max_duty;
     }
+
+    MP_PRN(3, "set_duty_u16(mode=%d, channel=%d, timer=%d, pin=%d, channel_duty=%d, duty=%d, timer->duty_resolution=%d)", self->mode, self->channel, self->timer, self->pin, channel_duty, duty, timer->duty_resolution);
+
     check_esp_err(ledc_set_duty(self->mode, self->channel, channel_duty));
     check_esp_err(ledc_update_duty(self->mode, self->channel));
 
@@ -398,7 +437,7 @@ STATIC bool is_free_channels(int mode, int pin) {
             return true;
         }
     }
-
+    MP_PRN(3, " is_free_channels()->false");
     return false;
 }
 
@@ -464,10 +503,10 @@ STATIC void select_a_timer(machine_pwm_obj_t *self, int freq) {
     }
     // If the timer is found, then bind and set the duty
     if ((timer >= 0)
-        && (timers[mode][timer].freq_hz != 0)
-        && (timers[mode][timer].freq_hz != freq)
-        && (self->channel >= 0)
-        && (self->mode >= 0)) {
+    && (timers[mode][timer].freq_hz != 0)
+    && (timers[mode][timer].freq_hz != freq)
+    && (self->channel >= 0)
+    && (self->mode >= 0)) {
         // Bind the channel to the timer
         self->mode = mode;
         self->timer = timer;
@@ -629,9 +668,9 @@ STATIC void mp_machine_pwm_init_helper(machine_pwm_obj_t *self,
 
     // New PWM assignment
     if ((chans[mode][channel].pin < 0)
-        || ((save_mode != self->mode))
-        || ((save_channel != self->channel))
-        || ((save_timer != self->timer))) {
+    || ((save_mode != self->mode))
+    || ((save_channel != self->channel))
+    || ((save_timer != self->timer))) {
         configure_channel(self);
         register_channel(self->mode, self->channel, self->pin, self->timer);
     }
@@ -640,6 +679,7 @@ STATIC void mp_machine_pwm_init_helper(machine_pwm_obj_t *self,
 // This called from PWM() constructor
 STATIC mp_obj_t mp_machine_pwm_make_new(const mp_obj_type_t *type,
     size_t n_args, size_t n_kw, const mp_obj_t *args) {
+    MP_PRN(3, "mp_machine_pwm_make_new()");
     mp_arg_check_num(n_args, n_kw, 1, 2, true);
     gpio_num_t pin_id = machine_pin_get_id(args[0]);
 

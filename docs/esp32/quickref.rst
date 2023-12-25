@@ -679,6 +679,45 @@ The RMT is ESP32-specific and allows generation of accurate digital pulses with
     # The channel resolution is 100ns (1/(source_freq/clock_div)).
     r.write_pulses((1, 20, 2, 40), 0) # Send 0 for 100ns, 1 for 2000ns, 0 for 200ns, 1 for 4000ns
 
+Counter (Pulse/Edge Counter)
+----------------------------
+
+The Counter counts the number of rising and/or falling edges on any input pin.
+It is a 64-bit signed hardware-based counter. Counter and Encoder share the same ESP32 PCNT hardware peripheral,
+the total summary available number of Counter and Encoder is up to 8.
+
+See :ref:`machine.Counter <esp32_machine.Counter>` for details.  Simplest usage is::
+
+    from machine import Pin, Counter
+
+    cnt = Counter(0, src=Pin(17, mode=Pin.IN), direction=Pin(16, mode=Pin.IN))
+    _v = None
+    while True:
+        v = cnt.value()  # get 64-bit signed value
+        if _v != v:
+            _v = v
+            print('Counter value:', v)
+
+Encoder (Quadrature Incremental Encoder)
+----------------------------------------
+
+The Encoder counts the quadrature-encoded pulses on pair of input pins (two square wave signals A and B with
+~50% duty cycle and ~90-degree phase difference between them).
+It is a 64-bit signed hardware-based counter. Counter and Encoder share the same ESP32 PCNT hardware peripheral,
+the total summary available number of Counter and Encoder is up to 8.
+
+See :ref:`machine.Encoder <esp32_machine.Encoder>` for details.  Simplest usage is::
+
+    from machine import Pin, Encoder
+
+    enc = Encoder(0, phase_a=Pin(17, mode=Pin.IN), phase_b=Pin(16, mode=Pin.IN))
+    _v = None
+    while True:
+        v = enc.value()  # get 64-bit signed value
+        if _v != v:
+            _v = v
+            print('Encoder value:', v)
+
 OneWire driver
 --------------
 
@@ -824,3 +863,29 @@ the corresponding functions, or you can use the command-line client
 
 See the MicroPython forum for other community-supported alternatives
 to transfer files to an ESP32 board.
+
+Error handling
+--------------
+
+To raise eroor from MicroPython module::
+
+    import errno
+    raise(OSError(errno.ETIMEDOUT))
+
+    >>> OSError: [Errno 116] ETIMEDOUT
+
+or::
+
+    raise(ValueError('Must be positive'))
+
+    >>> ValueError: Must be positive
+
+Internally in C code esp-idf raises ecceptions in format::
+
+    >>> OSError: (-12293, 0x3005, 'ESP_ERR_WIFI_MODE')
+
+Additional information about error codes see on Espressif esp-idf
+`esp_err.h <https://github.com/espressif/esp-idf/blob/master/components/esp_common/include/esp_err.h>`_,
+`esp_wifi.h <https://github.com/espressif/esp-idf/blob/master/components/esp_wifi/include/esp_wifi.h>`_,
+`esp_netif_types.h <https://github.com/espressif/esp-idf/blob/master/components/esp_netif/include/esp_netif_types.h>`_
+etc.

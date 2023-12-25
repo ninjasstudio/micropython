@@ -33,6 +33,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_timer.h"
+#include "esp_wifi.h"
 
 #include "py/obj.h"
 #include "py/objstr.h"
@@ -46,6 +47,10 @@
 #include "usb.h"
 #include "usb_serial_jtag.h"
 #include "uart.h"
+
+#include "py/mpprint.h"
+
+#define DEBUG 1
 
 TaskHandle_t mp_main_task_handle;
 
@@ -63,9 +68,14 @@ void check_esp_err_(esp_err_t code, const char *func, const int line, const char
         // map esp-idf error code to posix error code
         uint32_t pcode = -code;
         switch (code) {
+            case ESP_ERR_ESP_NETIF_NO_MEM:
+            #ifdef ESP_ERR_TCPIP_ADAPTER_NO_MEM
+            case ESP_ERR_TCPIP_ADAPTER_NO_MEM:
+            #endif
             case ESP_ERR_NO_MEM:
                 pcode = MP_ENOMEM;
                 break;
+            case ESP_ERR_WIFI_TIMEOUT:
             case ESP_ERR_TIMEOUT:
                 pcode = MP_ETIMEDOUT;
                 break;

@@ -172,7 +172,7 @@ low all of the time.
     PWM(Pin(27), freq=998, duty_u16=1024)  # resolution=16, (duty=1.56%, resolution=0.002%), mode=0, channel=0, timer=0
 
 
-* Example of a **smooth duty change and PWM output inversion**::
+* Example of a **smooth duty change and PWM output invertion**::
 
     from utime import sleep
     from machine import Pin, PWM
