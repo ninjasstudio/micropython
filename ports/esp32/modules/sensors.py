@@ -77,6 +77,21 @@ class Sensors():
 
     @micropython.native
     @property
+    def pitch(self):  # discrete
+        return round(self._pitch, 2)
+
+    @micropython.native
+    @property
+    def roll(self):  # discrete
+        return round(self._roll, 2)
+
+    @micropython.native
+    @property
+    def yaw(self):  # discrete
+        return round(self._yaw, 2)
+
+    @micropython.native
+    @property
     def temperature(self):
         t = self.imu.temperature
         if not self.imu.error:
