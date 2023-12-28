@@ -185,7 +185,7 @@ class AS5x47():
         self.tclk_2_us = 1_000_000 // (spi_baudrate * 2)  # tH = tclk / 2 ns # Time between last falling edge of CLK and rising edge of cs
         if self.tclk_2_us == 0:
             self.tclk_2_us = 1
-        print('self.tclk_2_us:', self.tclk_2_us)
+        #print('self.tclk_2_us:', self.tclk_2_us)
         self.cs = cs  # active is low
 
         self._write_command = bytearray(b'\xC0\x00')
@@ -199,13 +199,12 @@ class AS5x47():
         self.error = self.NO_error
 
         self._angle14 = 0
-        # set _angle14 !!!
-        self.readAngleCom()
+        self.readAngleCom() #  set _angle14 !!!
         self.readAngleCom()
         self.readAngleCom()
         
         self._angle14_prev = self._angle14
-        if self._angle14_prev >= 8192:
+        if self._angle14_prev >= 0x2000:
             self._angle14_prev = 0
 
         self._angle_major = 0
@@ -213,17 +212,15 @@ class AS5x47():
     # ------------------
     @micropython.native
     def _readAngleInfinity(self, readAngleFunc):
-        readAngleFunc()  # 8192 == 2 ** 14 // 2
+        readAngleFunc()
         if not self.error:
             delta = self._angle14 - self._angle14_prev
-            if delta >= 8192:
-                self._angle_major -= 360
-                #print('                                                   self._angle14, self._angle14_prev, delta', self._angle14, self._angle14_prev, delta)
-            elif delta <= -8192:
-                self._angle_major += 360
-                #print('                                                   self._angle14, self._angle14_prev, delta', self._angle14, self._angle14_prev, delta)
+            if delta >= 0x2000:
+                self._angle_major -= 0x4000
+            elif delta <= -0x2000:
+                self._angle_major += 0x4000
             self._angle14_prev = self._angle14
-            return self._angle14 * __to_angle + self._angle_major
+            return (self._angle14 + self._angle_major) * __to_angle
         else:
             return None
 
@@ -249,14 +246,14 @@ class AS5x47():
     def checkReceivedFrame(self):
         if self.received_frame.EF: 
             #raise RuntimeError('received_frame.EF on 0x%X' % self.command_frame.ADDR)
-            print('received_frame.EF on 0x%X' % self.command_frame.ADDR)
+            #print('received_frame.EF on 0x%X' % self.command_frame.ADDR)
             self.error = self.EF_error
         elif self.received_frame.PARD != is_even(self.received_frame.DATA, __MSB_mask):
             #raise ValueError('received_frame.PARD != is_even on 0x%X' % self.command_frame.ADDR)
-            print('received_frame.PARD != is_even on 0x%X' % self.command_frame.ADDR)
+            #print('received_frame.PARD != is_even on 0x%X' % self.command_frame.ADDR)
             self.error = self.PARD_error
         elif self._received_data == b'\xff\xff':
-            print("_received_data == b'\xff\xff'")
+            #print("_received_data == b'\xff\xff'")
             self.error = self.DATA_error
         else:
             self.error = self.NO_error
@@ -317,22 +314,22 @@ class AS5x47():
 
         self.writeData(self.command_frame, self.data_frame)
 
-    # ------------------
-    @micropython.viper
-    def readAngle(self):
-        self.readRegister(ANGLEUNC)
-        if not self.error:
-            self._angle14 = struct(addressof(self._received_data), ANGLEUNC_struct, BIG_ENDIAN).CORDICANG
-
-    @micropython.viper
-    def readAngleAgain(self):
-        self.readDataAgain()
-        if not self.error:
-            self._angle14 = struct(addressof(self._received_data), ANGLEUNC_struct, BIG_ENDIAN).CORDICANG
-
-    @micropython.viper
-    def readAngleInfinity(self):
-        return self._readAngleInfinity(self.readAngleAgain)
+#     # ------------------
+#     @micropython.viper
+#     def readAngle(self):
+#         self.readRegister(ANGLEUNC)
+#         if not self.error:
+#             self._angle14 = struct(addressof(self._received_data), ANGLEUNC_struct, BIG_ENDIAN).CORDICANG
+# 
+#     @micropython.viper
+#     def readAngleAgain(self):
+#         self.readDataAgain()
+#         if not self.error:
+#             self._angle14 = struct(addressof(self._received_data), ANGLEUNC_struct, BIG_ENDIAN).CORDICANG
+# 
+#     @micropython.viper
+#     def readAngleInfinity(self):
+#         return self._readAngleInfinity(self.readAngleAgain)
  
     # ------------------
     @micropython.viper
