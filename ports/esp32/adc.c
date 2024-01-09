@@ -62,11 +62,13 @@ void madcblock_bits_helper(machine_adc_block_obj_t *self, mp_int_t bits) {
     if (self->unit_id == ADC_UNIT_1) {
         adc1_config_width(self->width);
     }
+    #if CONFIG_IDF_TARGET_ESP32 || CONFIG_IDF_TARGET_ESP32S2 || CONFIG_IDF_TARGET_ESP32C3 || CONFIG_IDF_TARGET_ESP32S3
     for (adc_atten_t atten = ADC_ATTEN_DB_0; atten < ADC_ATTEN_MAX; atten++) {
         if (self->characteristics[atten] != NULL) {
             esp_adc_cal_characterize(self->unit_id, atten, self->width, DEFAULT_VREF, self->characteristics[atten]);
         }
     }
+    #endif
 }
 
 mp_int_t madcblock_read_helper(machine_adc_block_obj_t *self, adc_channel_t channel_id) {
@@ -81,6 +83,7 @@ mp_int_t madcblock_read_helper(machine_adc_block_obj_t *self, adc_channel_t chan
 
 mp_int_t madcblock_read_uv_helper(machine_adc_block_obj_t *self, adc_channel_t channel_id, adc_atten_t atten) {
     int raw = madcblock_read_helper(self, channel_id);
+    #if CONFIG_IDF_TARGET_ESP32 || CONFIG_IDF_TARGET_ESP32S2 || CONFIG_IDF_TARGET_ESP32C3 || CONFIG_IDF_TARGET_ESP32S3
     esp_adc_cal_characteristics_t *adc_chars = self->characteristics[atten];
     if (adc_chars == NULL) {
         adc_chars = malloc(sizeof(esp_adc_cal_characteristics_t));
@@ -89,4 +92,7 @@ mp_int_t madcblock_read_uv_helper(machine_adc_block_obj_t *self, adc_channel_t c
     }
     mp_int_t uv = esp_adc_cal_raw_to_voltage(raw, adc_chars) * 1000;
     return uv;
+    #else
+    return 0;
+    #endif
 }
